@@ -1,4 +1,4 @@
-project (optee_example_secure_storage C)
+project (off_chain_secure_storage C)
 
 set (SRC host/main.c)
 
