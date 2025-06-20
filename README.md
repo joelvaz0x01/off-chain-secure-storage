@@ -1,27 +1,41 @@
 # Off-Chain Data Storage using OP-TEE
+Trusted Application for secure off-chain data storage
 
-# Project Information
-
-- **Course**: AES 24/25
+## Project Information
+- **Course**: AES 2024/2025
 - **Assignment**: #2 - Off-Chain Data Storage using OP-TEE
-- **Authors**: Joel Vaz (86157), Hugo Silva(124461), Rúben Lopes(103009)
+- **Authors**:
+    - Hugo Silva - n.º 86157
+    - Rúben Lopes - n.º 103009
+    - Joel Vaz - n.º 124461
 
 
+## Application Info and Usage
 
 > [!NOTE]
-> This is based on OP-TEE Sample Application [secure storage](https://github.com/linaro-swg/optee_examples/tree/master/secure_storage) example.
-
-## Application Info
+> This is based on OP-TEE Sample Application [secure storage example](https://github.com/linaro-swg/optee_examples/tree/master/secure_storage).
 
 | Application name         | UUID                                 |
 | ------------------------ | ------------------------------------ |
 | off_chain_secure_storage | e3ae8c32-5fc1-42e4-b476-b35fe3f8f07d |
 
+```
+Usage: ./off_chain_secure_storage <command>
 
-# Project Description
+Commands:
+    retrieve <iot_device_id> - Retrieve JSON data for a given IoT device ID
+    store <iot_device_id> <json_data> - Store JSON data for a given IoT device ID
+    retrieve <json_hash> - Retrieve JSON data for a given hash
+    hash <json_data> - Get SHA256 hash of a given JSON data
+    attest - Get attestation data of the TA
+    public-key - Get public key of the TA
+```
+
+## Project Description
 This project implements a secure off-chain data storage solution using OP-TEE (Open Portable Trusted Execution Environment) for IoT sensor data management. The system main purpose is storing sensitive data off-chain while maintaining blockchain-level integrity and auditability through cryptographic hashing.
 
-# Project Structure
+
+## Project Structure
 ```
 optee-offchain-storage/
 ├── README.md                     # This file
