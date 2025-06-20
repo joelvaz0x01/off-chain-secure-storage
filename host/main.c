@@ -102,8 +102,18 @@ TEEC_Result retrieve_json_data(struct test_ctx *ctx, char *json_hash, size_t jso
 
     res = TEEC_InvokeCommand(&ctx->sess, TA_OFF_CHAIN_SECURE_STORAGE_RETRIEVE_JSON, &op, &origin);
 
+    /* If the buffer is too short, return the expected size */
+    if (res == TEE_ERROR_SHORT_BUFFER)
+    {
+        printf("The provided buffer is too short, expected size: %zu\n", op.params[1].tmpref.size);
+        return res;
+    }
+    
     if (res != TEEC_SUCCESS)
         printf("Command RETRIEVE_JSON failed: 0x%x / %u\n", res, origin);
+
+    json_data = op.params[1].tmpref.buffer;
+    json_data_len = op.params[1].tmpref.size;
 
     return res;
 }
