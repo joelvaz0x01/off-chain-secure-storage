@@ -1,0 +1,27 @@
+{
+    "device_id": "ENV_SENSOR_001",
+    "timestamp": "2025-06-20T14:30:00Z",
+    "location": {
+        "latitude": 41.5518,
+        "longitude": -8.4229,
+        "address": "University of Aveiro, Portugal"
+    },
+    "measurements": {
+        "temperature": 24.5,
+        "humidity": 65.2,
+        "air_pressure": 1013.25,
+        "pm2_5": 12.3,
+        "pm10": 18.7,
+        "co2": 410.5,
+        "noise_level": 45.2
+    },
+    "device_status": {
+        "battery_level": 87,
+        "signal_strength": -65,
+        "last_calibration": "2025-06-15T09:00:00Z"
+    },
+    "data_integrity": {
+        "sensor_checksum": "a1b2c3d4e5f6",
+        "measurement_count": 1247
+    }
+}

@@ -1,0 +1,32 @@
+{
+  "device_id": "MACHINE_CNC_042",
+  "timestamp": "2025-06-20T14:30:00Z",
+  "facility": "Factory Floor A",
+  "operational_data": {
+    "operating_hours": 156.75,
+    "production_cycles": 847,
+    "power_consumption_kwh": 234.8,
+    "vibration_levels": {
+      "x_axis": 2.1,
+      "y_axis": 1.8,
+      "z_axis": 3.2
+    },
+    "temperature_zones": {
+      "motor": 68.5,
+      "spindle": 72.1,
+      "coolant": 25.3
+    }
+  },
+  "maintenance": {
+    "last_service": "2025-06-10T08:00:00Z",
+    "next_service_due": "2025-07-10T08:00:00Z",
+    "wear_indicators": {
+      "cutting_tool": 0.75,
+      "bearing_condition": 0.92
+    }
+  },
+  "quality_metrics": {
+    "defect_rate": 0.02,
+    "tolerance_deviation": 0.001
+  }
+}

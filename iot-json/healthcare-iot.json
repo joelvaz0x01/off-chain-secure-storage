@@ -1,0 +1,26 @@
+{
+  "device_id": "PATIENT_MONITOR_H205",
+  "patient_id": "ANON_12847",
+  "timestamp": "2025-06-20T14:30:00Z",
+  "ward": "ICU_WING_B",
+  "vital_signs": {
+    "heart_rate": 78,
+    "blood_pressure": {
+      "systolic": 120,
+      "diastolic": 80
+    },
+    "oxygen_saturation": 98,
+    "respiratory_rate": 16,
+    "body_temperature": 36.8
+  },
+  "device_readings": {
+    "ecg_rhythm": "normal_sinus",
+    "alarm_status": "none",
+    "sensor_contact": "good"
+  },
+  "metadata": {
+    "attending_physician": "DR_CODE_456",
+    "monitoring_duration": 1440,
+    "data_classification": "highly_sensitive"
+  }
+}
