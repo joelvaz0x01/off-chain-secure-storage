@@ -29,8 +29,8 @@
 
 /* UUID of the trusted application */
 #define TA_OFF_CHAIN_SECURE_STORAGE_UUID \
-		{ 0xe3ae8c32, 0x5fc1, 0x42e4, \
-			{ 0xb4, 0x76, 0xb3, 0x5f, 0xe3, 0xf8, 0xf0, 0x7d } }
+	{ 0xe3ae8c32, 0x5fc1, 0x42e4, \
+		{ 0xb4, 0x76, 0xb3, 0x5f, 0xe3, 0xf8, 0xf0, 0x7d } }
 /*
  * Store JSON data in off-chain secure storage (persistent object)
  * @param param[0] (memref) IoT Device ID used the identify the persistent object
@@ -38,7 +38,7 @@
  * @param param[2] (memref) Buffer to store the SHA256 hash of the JSON data
  * @param param[3] unused
  */
-#define TA_OFF_CHAIN_SECURE_STORAGE_WRITE_JSON		0
+#define TA_OFF_CHAIN_SECURE_STORAGE_STORE_JSON		0
 
 /*
  * Retrieve JSON data from off-chain secure storage (persistent object)
@@ -47,7 +47,7 @@
  * @param param[2] unused
  * @param param[3] unused
  */
-#define TA_OFF_CHAIN_SECURE_STORAGE_READ_JSON		1
+#define TA_OFF_CHAIN_SECURE_STORAGE_RETRIEVE_JSON		1
 
 /*
  * Get the SHA256 hash of a JSON data (persistent object)

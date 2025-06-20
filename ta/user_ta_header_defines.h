@@ -34,7 +34,7 @@
 
 #include <secure_storage_ta.h>
 
-#define TA_UUID				TA_SECURE_STORAGE_UUID
+#define TA_UUID				TA_OFF_CHAIN_SECURE_STORAGE_UUID
 
 #define TA_FLAGS			(TA_FLAG_EXEC_DDR | TA_FLAG_SINGLE_INSTANCE)
 
@@ -48,6 +48,6 @@
 #define TA_VERSION	"1.0"
 
 /* The gpd.ta.description property */
-#define TA_DESCRIPTION	"Example of TA writing/reading data from its secure storage"
+#define TA_DESCRIPTION	"Example of TA off-chain data secure storage"
 
 #endif /*USER_TA_HEADER_DEFINES_H*/
