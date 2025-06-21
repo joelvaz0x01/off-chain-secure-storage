@@ -284,8 +284,13 @@ TEE_Result get_code_attestation(void *signature, size_t *sig_len)
 {
     TEE_Result res;
     TEE_ObjectHandle key_handle = TEE_HANDLE_NULL;
-    uint32_t flags = TEE_DATA_FLAG_ACCESS_READ;
+    TEE_OperationHandle hash_op = TEE_HANDLE_NULL;
+    TEE_OperationHandle sign_op = TEE_HANDLE_NULL;
     TEE_UUID uuid = TA_OFF_CHAIN_SECURE_STORAGE_UUID;
+    uint32_t flags = TEE_DATA_FLAG_ACCESS_READ;
+
+    uint8_t hash[SHA256_HASH_SIZE];
+    size_t hash_len = sizeof(hash);
 
     /* Check if the signature buffer is large enough */
     if (*sig_len < RSA_SIGNATURE_SIZE)
@@ -293,6 +298,16 @@ TEE_Result get_code_attestation(void *signature, size_t *sig_len)
         EMSG("Signature buffer too small, expected size: %zu bytes", RSA_SIGNATURE_SIZE);
         return TEE_ERROR_SHORT_BUFFER;
     }
+
+    /* Compute SHA256 hash of the UUID */
+    res = compute_sha256((char *)&uuid, sizeof(uuid), hash, &hash_len);
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to compute SHA256 of UUID: 0x%08x", res);
+        return res;
+    }
+
+    DMSG("SHA256: %02x%02x%02x%02x... (truncated)", hash[0], hash[1], hash[2], hash[3]);
 
     /* Open the persistent RSA key pair */
     res = TEE_OpenPersistentObject(
@@ -308,10 +323,12 @@ TEE_Result get_code_attestation(void *signature, size_t *sig_len)
         return res;
     }
 
-    /* Prepare operation handle for signing */
-    TEE_OperationHandle op_handle = TEE_HANDLE_NULL;
+    /* Prepare operation handle for signing:
+     *  - TEE_ALG_RSASSA_PKCS1_V1_5_SHA256 - RSA PKCS#1 v1.5 with SHA-256
+     *  - TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256 - RSA PSS with MGF1 and SHA-256 (as random salt)
+     */
     res = TEE_AllocateOperation(
-        &op_handle,                           /* operation */
+        &sign_op,                             /* operation */
         TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256, /* algorithm */
         TEE_MODE_SIGN,                        /* mode */
         RSA_KEY_SIZE_BITS                     /* maxKeySize */
@@ -324,26 +341,26 @@ TEE_Result get_code_attestation(void *signature, size_t *sig_len)
     }
 
     /* Set the key for the operation */
-    res = TEE_SetOperationKey(op_handle, key_handle);
+    res = TEE_SetOperationKey(sign_op, key_handle);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to set key for signing operation, res=0x%08x", res);
-        TEE_FreeOperation(op_handle);
+        TEE_FreeOperation(sign_op);
         TEE_CloseObject(key_handle);
         return res;
     }
 
     /* Sign the UUID */
     res = TEE_AsymmetricSignDigest(
-        op_handle,          /* operation */
+        sign_op,            /* operation */
         NULL, 0,            /* params, paramsCount */
-        (void *)&uuid,      /* digest */
-        sizeof(uuid),       /* digestLen */
+        (void *)hash,       /* digest */
+        hash_len,           /* digestLen */
         signature,          /* signature */
         (uint32_t *)sig_len /* signatureLen */
     );
 
-    TEE_FreeOperation(op_handle);
+    TEE_FreeOperation(sign_op);
     TEE_CloseObject(key_handle);
 
     if (res != TEE_SUCCESS)
