@@ -11,6 +11,8 @@
 #define AES_BLOCK_SIZE 16
 #define AES_KEY_SIZE 256
 
+#define SHA256_HASH_SIZE 32
+
 /**
  * Compute SHA256 hash of the data
  * @param data Pointer to the data to be hashed
@@ -24,9 +26,9 @@ static TEE_Result compute_sha256(char *data, size_t data_sz, char *hash_output, 
     TEE_OperationHandle op = TEE_HANDLE_NULL;
 
     /* Check if the output buffer is large enough */
-    if (*hash_output_sz < TEE_SHA256_HASH_SIZE)
+    if (*hash_output_sz < SHA256_HASH_SIZE)
     {
-        EMSG("Output buffer is too small, expected size: %zu bytes", TEE_SHA256_HASH_SIZE);
+        EMSG("Output buffer is too small, expected size: %zu bytes", SHA256_HASH_SIZE);
         return TEE_ERROR_SHORT_BUFFER;
     }
 

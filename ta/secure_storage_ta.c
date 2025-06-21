@@ -281,10 +281,9 @@ static TEE_Result hash_json_data(uint32_t param_types, TEE_Param params[4])
         TEE_PARAM_TYPE_NONE,
         TEE_PARAM_TYPE_NONE);
 
-    TEE_ObjectHandle object;
     TEE_Result res;
-    char *json_data;       /* param[0].buffer */
-    size_t json_data_sz;   /* param[0].size */
+    char *data;            /* param[0].buffer */
+    size_t data_sz;        /* param[0].size */
     char *hash_output;     /* param[1].buffer */
     size_t hash_output_sz; /* param[1].size */
 
@@ -292,50 +291,43 @@ static TEE_Result hash_json_data(uint32_t param_types, TEE_Param params[4])
     if (param_types != exp_param_types)
         return TEE_ERROR_BAD_PARAMETERS;
 
-    json_data_sz = params[0].memref.size;
-    json_data = TEE_Malloc(json_data_sz, 0);
-    if (!json_data)
+    data_sz = params[0].memref.size;
+    data = TEE_Malloc(data_sz, 0);
+    if (!data)
         return TEE_ERROR_OUT_OF_MEMORY;
-    TEE_MemMove(json_data, params[0].memref.buffer, json_data_sz);
+    TEE_MemMove(data, params[0].memref.buffer, data_sz);
 
     hash_output_sz = params[1].memref.size;
     hash_output = TEE_Malloc(hash_output_sz, 0);
     if (!hash_output)
-        return TEE_ERROR_OUT_OF_MEMORY;
+    {
+        res = TEE_ERROR_OUT_OF_MEMORY;
+        goto exit;
+    }
 
     /* Compute SHA256 hash of the JSON data */
-    res = compute_sha256(json_data, json_data_sz, hash_output, &hash_output_sz);
+    res = compute_sha256(data, data_sz, hash_output, &hash_output_sz);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to compute SHA256 hash, res=0x%08x", res);
-        TEE_Free(json_data);
-        TEE_Free(hash_output);
-        return res;
+        goto exit;
     }
 
     /* Copy the hash output to the output parameter */
-    if (hash_output_sz > params[1].memref.size)
-    {
-        /* Output buffer is too small */
-        TEE_Free(json_data);
-        TEE_Free(hash_output);
-        TEE_Free(object);
-        return TEE_ERROR_SHORT_BUFFER;
-    }
     TEE_MemMove(params[1].memref.buffer, hash_output, hash_output_sz);
     params[1].memref.size = hash_output_sz;
 
-    TEE_Free(json_data);
-    TEE_Free(hash_output);
-    TEE_Free(object);
-
-    if (res != TEE_SUCCESS)
+exit:
+    if (data)
     {
-        EMSG("Failed to open persistent object, res=0x%08x", res);
-        return res;
+        TEE_MemFill(data, 0, data_sz);
+        TEE_Free(data);
     }
-
-    TEE_CloseAndDeletePersistentObject1(object);
+    if (hash_output)
+    {
+        TEE_MemFill(hash_output, 0, hash_output_sz);
+        TEE_Free(hash_output);
+    }
 
     return res;
 }
@@ -354,25 +346,42 @@ static TEE_Result get_attestation(uint32_t param_types, TEE_Param params[4])
         TEE_PARAM_TYPE_NONE);
 
     TEE_Result res;
-    size_t attestation_data_sz = params[0].memref.size;
-    void *attestation_data = params[0].memref.buffer;
+    size_t attestation_data_sz;
+    void *attestation_data;
 
     /* Safely get the invocation parameters */
     if (param_types != exp_param_types)
         return TEE_ERROR_BAD_PARAMETERS;
 
+    /* Allocate buffer for attestation data */
+    attestation_data_sz = params[0].memref.size;
+    attestation_data = TEE_Malloc(attestation_data_sz, 0);
+    if (!attestation_data)
+        return TEE_ERROR_OUT_OF_MEMORY;
+
     /* Get code attestation data */
     res = get_code_attestation(attestation_data, &attestation_data_sz);
+    if (res == TEE_ERROR_SHORT_BUFFER)
+    {
+        EMSG("The provided buffer is too small, expected size: %zu bytes", attestation_data_sz);
+        goto exit;
+    }
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to get code attestation data, res=0x%08x", res);
-        return res;
+        goto exit;
     }
 
     /* Copy the attestation data to the output parameter */
+    TEE_MemMove(params[0].memref.buffer, attestation_data, attestation_data_sz);
     params[0].memref.size = attestation_data_sz;
-    params[0].memref.buffer = attestation_data;
 
+exit:
+    if (attestation_data)
+    {
+        TEE_MemFill(attestation_data, 0, attestation_data_sz);
+        TEE_Free(attestation_data);
+    }
     return res;
 }
 
@@ -390,24 +399,39 @@ static TEE_Result get_public_key(uint32_t param_types, TEE_Param params[4])
         TEE_PARAM_TYPE_NONE);
 
     TEE_Result res;
-    size_t public_key_sz = params[0].memref.size;
-    void *public_key = params[0].memref.buffer;
+    size_t public_key_sz;
+    void *public_key;
 
     /* Safely get the invocation parameters */
     if (param_types != exp_param_types)
         return TEE_ERROR_BAD_PARAMETERS;
+
+    public_key_sz = params[0].memref.size;
+    public_key = TEE_Malloc(public_key_sz, 0);
+    if (!public_key)
+    {
+        EMSG("Failed to allocate memory for public key");
+        return TEE_ERROR_OUT_OF_MEMORY;
+    }
 
     /* Get the public key */
     res = get_ed25519_public_key(public_key, &public_key_sz);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to get public key, res=0x%08x", res);
-        return res;
+        goto exit;
     }
 
     /* Copy the public key to the output parameter */
+    TEE_MemMove(params[0].memref.buffer, public_key, public_key_sz);
     params[0].memref.size = public_key_sz;
-    params[0].memref.buffer = public_key;
+
+exit:
+    if (public_key)
+    {
+        TEE_MemFill(public_key, 0, public_key_sz);
+        TEE_Free(public_key);
+    }
 
     return res;
 }
