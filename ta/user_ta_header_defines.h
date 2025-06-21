@@ -48,6 +48,6 @@
 #define TA_VERSION	"1.0"
 
 /* The gpd.ta.description property */
-#define TA_DESCRIPTION	"Example of TA off-chain data secure storage"
+#define TA_DESCRIPTION	"Trusted Application for secure off-chain data storage"
 
 #endif /*USER_TA_HEADER_DEFINES_H*/

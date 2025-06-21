@@ -276,13 +276,13 @@ int main(void)
     /* List of commands available */
     if (argc < 3)
     {
-        printf("Usage: %s <command>\n", argv[0]);
+        printf("Usage: %s <command>\n\n", argv[0]);
         printf("Commands:\n");
-        printf("  store <iot_device_id> <json_data> - Store JSON data for the given IoT device ID\n");
-        printf("  retrieve <json_hash> - Retrieve JSON data for the given hash\n");
-        printf("  hash <json_data> - Get SHA256 hash of the given JSON data\n");
-        printf("  attestation - Get attestation data of the TA\n");
-        printf("  public_key - Get public key of the TA\n");
+        printf("  store <iot_device_id> <json_data> - Store JSON data for a given IoT device ID\n");
+        printf("  retrieve <json_hash> - Retrieve JSON data for a given hash\n");
+        printf("  hash <json_data> - Get SHA256 hash of a given JSON data\n");
+        printf("  attest - Get attestation data of the TA\n");
+        printf("  public-key - Get public key of the TA\n");
         return 1;
     }
 
@@ -339,7 +339,7 @@ int main(void)
             printf("Failed to hash JSON data\n");
         }
     }
-    else if (0 == strcmp(argv[1], "attestation"))
+    else if (0 == strcmp(argv[1], "attest"))
     {
         res = get_attestation_data(&ctx, attestation_data, ATTESTATION_DATA_SIZE);
         if (res == TEEC_SUCCESS)
@@ -356,7 +356,7 @@ int main(void)
             printf("Failed to get attestation data\n");
         }
     }
-    else if (0 == strcmp(argv[1], "public_key"))
+    else if (0 == strcmp(argv[1], "public-key"))
     {
         res = get_public_key(&ctx, public_key, PUBLIC_KEY_SIZE);
         if (res == TEEC_SUCCESS)
