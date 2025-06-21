@@ -40,8 +40,8 @@ static TEE_Result store_json_data(uint32_t param_types, TEE_Param params[4])
 {
     const uint32_t exp_param_types = TEE_PARAM_TYPES(
         TEE_PARAM_TYPE_MEMREF_INPUT,
+        TEE_PARAM_TYPE_MEMREF_INPUT,
         TEE_PARAM_TYPE_MEMREF_OUTPUT,
-        TEE_PARAM_TYPE_NONE,
         TEE_PARAM_TYPE_NONE);
 
     TEE_ObjectHandle object;
@@ -51,7 +51,7 @@ static TEE_Result store_json_data(uint32_t param_types, TEE_Param params[4])
     char *data;                                /* param[1].buffer */
     size_t data_sz;                            /* param[1].size */
     char *output_hash;                         /* param[2].buffer */
-    size_t hash_output_sz;                     /* param[2].size */
+    size_t output_hash_sz;                     /* param[2].size */
     uint32_t flag = TEE_DATA_FLAG_ACCESS_READ; /* we can read the object */
 
     /* Safely get the invocation parameters */
@@ -76,8 +76,8 @@ static TEE_Result store_json_data(uint32_t param_types, TEE_Param params[4])
     }
     TEE_MemMove(data, params[1].memref.buffer, data_sz);
 
-    hash_output_sz = params[2].memref.size;
-    output_hash = TEE_Malloc(hash_output_sz, 0);
+    output_hash_sz = params[2].memref.size;
+    output_hash = TEE_Malloc(output_hash_sz, 0);
     if (!output_hash)
     {
         res = TEE_ERROR_OUT_OF_MEMORY;
@@ -85,7 +85,7 @@ static TEE_Result store_json_data(uint32_t param_types, TEE_Param params[4])
     }
 
     /* Compute SHA256 hash of the data */
-    res = compute_sha256(data, data_sz, output_hash, &hash_output_sz);
+    res = compute_sha256(data, data_sz, output_hash, &output_hash_sz);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to compute SHA256 hash, res=0x%08x", res);
@@ -93,8 +93,8 @@ static TEE_Result store_json_data(uint32_t param_types, TEE_Param params[4])
     }
 
     /* Check if the output buffer is large enough and copy the hash */
-    if (hash_output_sz <= params[2].memref.size)
-        TEE_MemMove(params[2].memref.buffer, output_hash, hash_output_sz);
+    if (output_hash_sz <= params[2].memref.size)
+        TEE_MemMove(params[2].memref.buffer, output_hash, output_hash_sz);
     else
     {
         res = TEE_ERROR_SHORT_BUFFER;
@@ -112,11 +112,11 @@ static TEE_Result store_json_data(uint32_t param_types, TEE_Param params[4])
     /* Create object in secure storage and fill with data */
     res = TEE_CreatePersistentObject(
         TEE_STORAGE_PRIVATE,         /* storageID */
-        output_hash, hash_output_sz, /* objectID, objectIDLen */
+        output_hash, output_hash_sz, /* objectID, objectIDLen */
         flag,                        /* flags */
         TEE_HANDLE_NULL,             /* attributes */
         data, data_sz,               /* initialData, initialDataLen */
-        &object                      /* object */
+        &object                       /* object */
     );
     if (res != TEE_SUCCESS)
     {
@@ -135,7 +135,7 @@ exit:
     }
     if (output_hash)
     {
-        TEE_MemFill(output_hash, 0, hash_output_sz);
+        TEE_MemFill(output_hash, 0, output_hash_sz);
         TEE_Free(output_hash);
     }
     if (iot_device_id)

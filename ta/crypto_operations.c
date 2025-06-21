@@ -307,8 +307,6 @@ TEE_Result get_code_attestation(void *signature, size_t *sig_len)
         return res;
     }
 
-    DMSG("SHA256: %02x%02x%02x%02x... (truncated)", hash[0], hash[1], hash[2], hash[3]);
-
     /* Open the persistent RSA key pair */
     res = TEE_OpenPersistentObject(
         TEE_STORAGE_PRIVATE,              /* storageID */
@@ -451,11 +449,7 @@ TEE_Result encrypt_aes_data(const char *plaintext, size_t plaintext_len, char *c
     uint32_t read_bytes = 0;
 
     /* Ensure output buffer can hold IV + ciphertext */
-    if (*ciphertext_len < plaintext_len + AES_BLOCK_SIZE)
-    {
-        EMSG("Output buffer is too small, expected size: %zu bytes", plaintext_len + AES_BLOCK_SIZE);
-        return TEE_ERROR_SHORT_BUFFER;
-    }
+    *ciphertext_len = plaintext_len + AES_BLOCK_SIZE;
 
     /* Retrieve the AES key from persistent storage or generate a new one */
     res = generate_aes_key(&key_handle);
@@ -481,12 +475,12 @@ TEE_Result encrypt_aes_data(const char *plaintext, size_t plaintext_len, char *c
     }
 
     /* Generate a new random IV for each encryption */
-    TEE_GenerateRandom(iv, AES_BLOCK_SIZE);
+    TEE_GenerateRandom((void *)iv, AES_BLOCK_SIZE);
 
     /* Copy IV to start of ciphertext */
     memcpy(ciphertext, iv, AES_BLOCK_SIZE);
 
-    TEE_CipherInit(operation, iv, AES_BLOCK_SIZE);
+    TEE_CipherInit(operation, (void *)iv, AES_BLOCK_SIZE);
 
     /* Encrypt plaintext after the IV in ciphertext buffer */
     uint32_t enc_len = *ciphertext_len - AES_BLOCK_SIZE;
@@ -599,3 +593,7 @@ exit:
 
     return res;
 }
+
+/* TODO
+ * (optional) Limit JSON file access via an ACL like functionality
+ */

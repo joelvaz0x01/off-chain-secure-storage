@@ -142,9 +142,9 @@ TEEC_Result store_json_data(struct test_ctx *ctx, char *iot_device_id, char *jso
     memset(&op, 0, sizeof(op));
     op.paramTypes = TEEC_PARAM_TYPES(
         TEEC_MEMREF_TEMP_INPUT,  /* param[0] (memref) */
-        TEEC_MEMREF_TEMP_OUTPUT, /* param[1] (memref) */
-        TEEC_NONE,               /* param[2] unused */
-        TEEC_NONE                /* param[3] unused */
+        TEEC_MEMREF_TEMP_INPUT,  /* param[1] (memref) */
+        TEEC_MEMREF_TEMP_OUTPUT, /* param[2] (memref) */
+        TEEC_NONE               /* param[3] unused */
     );
 
     /* param[0] (memref) IoT Device ID used the identify the persistent object */
@@ -295,7 +295,7 @@ int main(int argc, char *argv[])
     prepare_tee_session(&ctx);
 
     /* Command handling */
-    if (0 == strcmp(argv[1], "store"))
+    if (0 == strcmp(argv[1], "store") && 4 == argc)
     {
         strncpy(json_data, argv[3], JSON_MAX_SIZE);
         res = store_json_data(&ctx, argv[2], json_data, JSON_MAX_SIZE, hash_output, JSON_HASH_SIZE);
