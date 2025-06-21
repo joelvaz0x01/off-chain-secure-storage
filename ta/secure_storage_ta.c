@@ -36,7 +36,7 @@
  * @param param_types: expected parameter types
  * @param params: parameters passed to the TA
  */
-static TEE_Result store_json_object(uint32_t param_types, TEE_Param params[4])
+static TEE_Result store_json_data(uint32_t param_types, TEE_Param params[4])
 {
     const uint32_t exp_param_types = TEE_PARAM_TYPES(
         TEE_PARAM_TYPE_MEMREF_INPUT,
@@ -46,11 +46,13 @@ static TEE_Result store_json_object(uint32_t param_types, TEE_Param params[4])
 
     TEE_ObjectHandle object;
     TEE_Result res;
-    char *iot_device_id;     /* param[0].buffer */
-    size_t iot_device_id_sz; /* param[0].size */
-    char *json_data;         /* param[1].buffer */
-    size_t json_data_sz;     /* param[1].size */
-    uint32_t data_flag;
+    char *iot_device_id;                       /* param[0].buffer */
+    size_t iot_device_id_sz;                   /* param[0].size */
+    char *data;                                /* param[1].buffer */
+    size_t data_sz;                            /* param[1].size */
+    char *output_hash;                         /* param[2].buffer */
+    size_t hash_output_sz;                     /* param[2].size */
+    uint32_t flag = TEE_DATA_FLAG_ACCESS_READ; /* we can read the object */
 
     /* Safely get the invocation parameters */
     if (param_types != exp_param_types)
@@ -59,51 +61,86 @@ static TEE_Result store_json_object(uint32_t param_types, TEE_Param params[4])
     iot_device_id_sz = params[0].memref.size;
     iot_device_id = TEE_Malloc(iot_device_id_sz, 0);
     if (!iot_device_id)
-        return TEE_ERROR_OUT_OF_MEMORY;
+    {
+        res = TEE_ERROR_OUT_OF_MEMORY;
+        goto exit;
+    }
     TEE_MemMove(iot_device_id, params[0].memref.buffer, iot_device_id_sz);
 
-    json_data_sz = params[1].memref.size;
-    json_data = TEE_Malloc(json_data_sz, 0);
-    if (!json_data)
-        return TEE_ERROR_OUT_OF_MEMORY;
-    TEE_MemMove(json_data, params[1].memref.buffer, json_data_sz);
+    data_sz = params[1].memref.size;
+    data = TEE_Malloc(data_sz, 0);
+    if (!data)
+    {
+        res = TEE_ERROR_OUT_OF_MEMORY;
+        goto exit;
+    }
+    TEE_MemMove(data, params[1].memref.buffer, data_sz);
+
+    hash_output_sz = params[2].memref.size;
+    output_hash = TEE_Malloc(hash_output_sz, 0);
+    if (!output_hash)
+    {
+        res = TEE_ERROR_OUT_OF_MEMORY;
+        goto exit;
+    }
+
+    /* Compute SHA256 hash of the data */
+    res = compute_sha256(data, data_sz, output_hash, &hash_output_sz);
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to compute SHA256 hash, res=0x%08x", res);
+        goto exit;
+    }
+
+    /* Check if the output buffer is large enough and copy the hash */
+    if (hash_output_sz <= params[2].memref.size)
+        TEE_MemMove(params[2].memref.buffer, output_hash, hash_output_sz);
+    else
+    {
+        res = TEE_ERROR_SHORT_BUFFER;
+        goto exit;
+    }
+
+    /* Encrypt data */
+    res = encrypt_aes_data(data, data_sz, data, &data_sz);
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to encrypt data, res=0x%08x", res);
+        goto exit;
+    }
 
     /* Create object in secure storage and fill with data */
-    data_flag =
-        TEE_DATA_FLAG_ACCESS_READ |  /* we can later read the oject */
-        TEE_DATA_FLAG_ACCESS_WRITE | /* we can later write into the object */
-        TEE_DATA_FLAG_OVERWRITE;     /* destroy existing object of same IoT device ID */
-
     res = TEE_CreatePersistentObject(
-        TEE_STORAGE_PRIVATE,             /* storagID */
-        iot_device_id, iot_device_id_sz, /* objectID, objectIDLen */
-        data_flag,                       /* flags */
-        TEE_HANDLE_NULL,                 /* attributes */
-        json_data, json_data_sz,         /* initialData, initialDataLen */
-        &object                          /* object */
+        TEE_STORAGE_PRIVATE,         /* storageID */
+        output_hash, hash_output_sz, /* objectID, objectIDLen */
+        flag,                        /* flags */
+        TEE_HANDLE_NULL,             /* attributes */
+        data, data_sz,               /* initialData, initialDataLen */
+        &object                      /* object */
     );
-
     if (res != TEE_SUCCESS)
     {
         EMSG("TEE_CreatePersistentObject failed 0x%08x", res);
-        TEE_Free(iot_device_id);
-        TEE_Free(json_data);
-        return res;
+        goto exit;
     }
 
-    res = TEE_WriteObjectData(object, json_data, json_data_sz);
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("TEE_WriteObjectData failed 0x%08x", res);
-        TEE_CloseAndDeletePersistentObject1(object);
-    }
-    else
-    {
+exit:
+    if (object != TEE_HANDLE_NULL)
         TEE_CloseObject(object);
+
+    if (data)
+    {
+        TEE_MemFill(data, 0, data_sz);
+        TEE_Free(data);
     }
-    TEE_Free(iot_device_id);
-    TEE_Free(json_data);
-    TEE_Free(data);
+    if (output_hash)
+    {
+        TEE_MemFill(output_hash, 0, hash_output_sz);
+        TEE_Free(output_hash);
+    }
+    if (iot_device_id)
+        TEE_Free(iot_device_id);
+
     return res;
 }
 
@@ -112,7 +149,7 @@ static TEE_Result store_json_object(uint32_t param_types, TEE_Param params[4])
  * @param param_types: parameter types of the command
  * @param params: parameters of the command
  */
-static TEE_Result retrieve_json_object(uint32_t param_types, TEE_Param params[4])
+static TEE_Result retrieve_json_data(uint32_t param_types, TEE_Param params[4])
 {
     const uint32_t exp_param_types = TEE_PARAM_TYPES(
         TEE_PARAM_TYPE_MEMREF_INPUT,
@@ -120,99 +157,123 @@ static TEE_Result retrieve_json_object(uint32_t param_types, TEE_Param params[4]
         TEE_PARAM_TYPE_NONE,
         TEE_PARAM_TYPE_NONE);
 
-    TEE_ObjectHandle object;
+    TEE_ObjectHandle object = TEE_HANDLE_NULL;
     TEE_ObjectInfo object_info;
     TEE_Result res;
     uint32_t read_bytes;
-    char *json_hash;     /* param[0].buffer */
-    size_t json_hash_sz; /* param[0].size */
-    char *json_data;     /* param[1].buffer */
-    size_t json_data_sz; /* param[1].size */
-    uint32_t data_flag;
+    char *hash_file;          /* param[0].buffer */
+    size_t hash_file_sz;      /* param[0].size */
+    char *decrypted_data;     /* param[1].buffer */
+    size_t decrypted_data_sz; /* param[1].size */
+    char *encrypted_data;     /* Auxiliary buffer for encrypted data */
+    size_t encrypted_data_sz; /* Auxiliary size for encrypted data */
+    uint32_t flag =
+        TEE_DATA_FLAG_ACCESS_READ | /* we can read the object */
+        TEE_DATA_FLAG_SHARE_READ;   /* we can share the object with other TAs */
 
     /* Safely get the invocation parameters */
     if (param_types != exp_param_types)
         return TEE_ERROR_BAD_PARAMETERS;
 
-    json_hash_sz = params[0].memref.size;
-    json_hash = TEE_Malloc(json_hash_sz, 0);
-    if (!json_hash)
+    /* Allocate buffer for hash file */
+    hash_file_sz = params[0].memref.size;
+    hash_file = TEE_Malloc(hash_file_sz, 0);
+    if (!hash_file)
         return TEE_ERROR_OUT_OF_MEMORY;
-    TEE_MemMove(json_hash, params[0].memref.buffer, json_hash_sz);
+    TEE_MemMove(hash_file, params[0].memref.buffer, hash_file_sz);
 
-    json_data_sz = params[1].memref.size;
-    json_data = TEE_Malloc(json_data_sz, 0);
-    if (!json_data)
-        return TEE_ERROR_OUT_OF_MEMORY;
-
-    data_flag =
-        TEE_DATA_FLAG_ACCESS_READ | /* we can read the object */
-        TEE_DATA_FLAG_SHARE_READ;   /* we can share the object with other TAs */
+    decrypted_data_sz = params[1].memref.size;
 
     /* Check if the object exist and open it for reading */
     res = TEE_OpenPersistentObject(
         TEE_STORAGE_PRIVATE,     /* storageID */
-        json_hash, json_hash_sz, /* objectID, objectIDLen */
-        data_flag,               /* flags */
+        hash_file, hash_file_sz, /* objectID, objectIDLen */
+        flag,                    /* flags */
         &object                  /* object */
     );
-
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to open persistent object, res=0x%08x", res);
-        TEE_Free(json_hash);
-        TEE_Free(json_data);
-        return res;
-    }
-
-    res = TEE_GetObjectInfo1(object, &object_info);
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("Failed to create persistent object, res=0x%08x", res);
         goto exit;
     }
 
-    if (object_info.dataSize > data_sz)
+    /* Get info about the object */
+    res = TEE_GetObjectInfo1(object, &object_info);
+    if (res != TEE_SUCCESS)
     {
-        /*
-         * Provided buffer is too short.
-         * Return the expected size together with status "short buffer"
-         */
-        params[1].memref.size = object_info.dataSize;
+        EMSG("Failed to get object info, res=0x%08x", res);
+        goto exit;
+    }
+    encrypted_data_sz = object_info.dataSize;
+
+    /* Check if the output buffer is large enough */
+    if (decrypted_data_sz < encrypted_data_sz)
+    {
+        EMSG("Output buffer is too small, expected size: %zu bytes", encrypted_data_sz);
         res = TEE_ERROR_SHORT_BUFFER;
         goto exit;
     }
 
-    res = TEE_ReadObjectData(
-        object,               /* object */
-        json_data,            /* buffer */
-        object_info.dataSize, /* size */
-        &read_bytes           /* counter */
-    );
-
-    /* Copy read data to output buffer */
-    if (res == TEE_SUCCESS)
-        TEE_MemMove(params[1].memref.buffer, json_data, read_bytes);
-
-    if (res != TEE_SUCCESS || read_bytes != object_info.dataSize)
+    /* Allocate buffer for encrypted data */
+    encrypted_data = TEE_Malloc(encrypted_data_sz, 0);
+    if (!encrypted_data)
     {
-        EMSG("TEE_ReadObjectData failed 0x%08x, read %" PRIu32 " over %u", res, read_bytes, object_info.dataSize);
+        res = TEE_ERROR_OUT_OF_MEMORY;
         goto exit;
     }
 
+    /* Read encrypted data */
+    res = TEE_ReadObjectData(object, encrypted_data, encrypted_data_sz, &read_bytes);
+    if (res != TEE_SUCCESS || read_bytes != encrypted_data_sz)
+    {
+        EMSG("TEE_ReadObjectData failed 0x%08x, read %u over %u", res, read_bytes, encrypted_data_sz);
+        goto exit;
+    }
+
+    /* Allocate buffer for decrypted data */
+    decrypted_data = TEE_Malloc(decrypted_data_sz, 0);
+    if (!decrypted_data)
+    {
+        res = TEE_ERROR_OUT_OF_MEMORY;
+        goto exit;
+    }
+
+    /* Decrypt the data */
+    res = decrypt_aes_data(encrypted_data, encrypted_data_sz, decrypted_data, &decrypted_data_sz);
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to decrypt data, res=0x%08x", res);
+        goto exit;
+    }
+
+    /* Copy decrypted data to output buffer */
+    TEE_MemMove(params[1].memref.buffer, decrypted_data, decrypted_data_sz);
+    params[1].memref.size = decrypted_data_sz;
+
 exit:
-    TEE_CloseObject(object);
-    TEE_Free(json_hash);
-    TEE_Free(json_data);
+    if (object != TEE_HANDLE_NULL)
+        TEE_CloseObject(object);
+    if (hash_file)
+        TEE_Free(hash_file);
+    if (encrypted_data)
+    {
+        TEE_MemFill(encrypted_data, 0, encrypted_data_sz);
+        TEE_Free(encrypted_data);
+    }
+    if (decrypted_data)
+    {
+        TEE_MemFill(decrypted_data, 0, decrypted_data_sz);
+        TEE_Free(decrypted_data);
+    }
     return res;
 }
 
 /**
- * Hash JSON object and store it in off-chain secure storage
+ * Hash a given JSON object using SHA256
  * @param param_types: expected parameter types
  * @param params: parameters passed to the TA
  */
-static TEE_Result hash_json_object(uint32_t param_types, TEE_Param params[4])
+static TEE_Result hash_json_data(uint32_t param_types, TEE_Param params[4])
 {
     const uint32_t exp_param_types = TEE_PARAM_TYPES(
         TEE_PARAM_TYPE_MEMREF_INPUT,
@@ -227,9 +288,7 @@ static TEE_Result hash_json_object(uint32_t param_types, TEE_Param params[4])
     char *hash_output;     /* param[1].buffer */
     size_t hash_output_sz; /* param[1].size */
 
-    /*
-     * Safely get the invocation parameters
-     */
+    /* Safely get the invocation parameters */
     if (param_types != exp_param_types)
         return TEE_ERROR_BAD_PARAMETERS;
 
@@ -317,7 +376,11 @@ static TEE_Result get_attestation(uint32_t param_types, TEE_Param params[4])
     return res;
 }
 
-// get_public_key
+/**
+ * Get the public key of the Ed25519 key pair stored in secure storage
+ * @param param_types: expected parameter types
+ * @param params: parameters passed to the TA
+ */
 static TEE_Result get_public_key(uint32_t param_types, TEE_Param params[4])
 {
     const uint32_t exp_param_types = TEE_PARAM_TYPES(
@@ -407,15 +470,15 @@ TEE_Result TA_InvokeCommandEntryPoint(void __unused *session, uint32_t command, 
 {
     if (TA_OFF_CHAIN_SECURE_STORAGE_STORE_JSON == command)
     {
-        return store_json_object(param_types, params);
+        return store_json_data(param_types, params);
     }
     else if (TA_OFF_CHAIN_SECURE_STORAGE_RETRIEVE_JSON == command)
     {
-        return retrieve_json_object(param_types, params);
+        return retrieve_json_data(param_types, params);
     }
     else if (TA_OFF_CHAIN_SECURE_STORAGE_HASH_JSON == command)
     {
-        return hash_json_object(param_types, params);
+        return hash_json_data(param_types, params);
     }
     else if (TA_OFF_CHAIN_SECURE_STORAGE_GET_ATTESTATION == command)
     {
