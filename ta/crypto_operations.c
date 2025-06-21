@@ -107,17 +107,14 @@ static TEE_Result generate_rsa_key_pair(TEE_ObjectHandle *key_pair_handle)
         return res;
     }
 
-    /* Set key generation attributes */
-    TEE_InitValueAttribute(&attrs[0], TEE_ATTR_RSA_MODULUS_SIZE, RSA_KEY_SIZE, 0);
-
-    res = TEE_GenerateKey(transient_key, RSA_KEY_SIZE, attrs, 1);
+    res = TEE_GenerateKey(transient_key, RSA_KEY_SIZE, NULL, 0);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to generate RSA key pair, res=0x%08x", res);
+        TEE_FreeTransientObject(transient_key);
         return res;
     }
 
-    flags |= TEE_DATA_FLAG_ACCESS_WRITE; /* we also need write access */
     res = TEE_CreatePersistentObject(
         TEE_STORAGE_PRIVATE,      /* storageID */
         RSA_STORAGE_NAME,         /* objectID */
@@ -133,7 +130,6 @@ static TEE_Result generate_rsa_key_pair(TEE_ObjectHandle *key_pair_handle)
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to store RSA key pair, res=0x%08x", res);
-        TEE_FreeTransientObject(transient_key);
         return res;
     }
 
@@ -192,7 +188,6 @@ static TEE_Result generate_aes_key(TEE_ObjectHandle *key_handle)
 
     /* Store the AES key in secure storage */
     TEE_ObjectHandle persistent_key;
-    flags |= TEE_DATA_FLAG_ACCESS_WRITE; /* we also need write access */
     res = TEE_CreatePersistentObject(
         TEE_STORAGE_PRIVATE,          /* storageID */
         AES_KEY_STORAGE_NAME,         /* objectID */
