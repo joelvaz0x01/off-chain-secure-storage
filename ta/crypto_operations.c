@@ -47,7 +47,7 @@ TEE_Result compute_sha256(char *data, size_t data_sz, char *hash_output, size_t 
     TEE_DigestUpdate(op, data, data_sz);
 
     /* Finalize the digest and get the output */
-    res = TEE_DigestDoFinal(op, NULL, 0, hash_output, &hash_output_sz);
+    res = TEE_DigestDoFinal(op, NULL, 0, hash_output, hash_output_sz);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to finalize digest, res=0x%08x", res);
