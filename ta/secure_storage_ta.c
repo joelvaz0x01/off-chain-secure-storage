@@ -33,8 +33,8 @@
 
 /**
  * Store JSON object in off-chain secure storage (persistent object)
- * @param param_types: expected parameter types
- * @param params: parameters passed to the TA
+ * @param param_types Expected parameter types
+ * @param params Parameters passed to the TA
  */
 static TEE_Result store_json_data(uint32_t param_types, TEE_Param params[4])
 {
@@ -146,8 +146,8 @@ exit:
 
 /**
  * Retrieve JSON object from off-chain secure storage (persistent object)
- * @param param_types: parameter types of the command
- * @param params: parameters of the command
+ * @param param_types Expected parameter types of the command
+ * @param params Parameters of the command
  */
 static TEE_Result retrieve_json_data(uint32_t param_types, TEE_Param params[4])
 {
@@ -270,8 +270,8 @@ exit:
 
 /**
  * Hash a given JSON object using SHA256
- * @param param_types: expected parameter types
- * @param params: parameters passed to the TA
+ * @param param_types Expected parameter types
+ * @param params Parameters passed to the TA
  */
 static TEE_Result hash_json_data(uint32_t param_types, TEE_Param params[4])
 {
@@ -334,8 +334,8 @@ exit:
 
 /**
  * Get attestation data of the TA
- * @param param_types: expected parameter types
- * @param params: parameters passed to the TA
+ * @param param_types Expected parameter types
+ * @param params Parameters passed to the TA
  */
 static TEE_Result get_attestation(uint32_t param_types, TEE_Param params[4])
 {
@@ -387,8 +387,8 @@ exit:
 
 /**
  * Get the public key of the Ed25519 key pair stored in secure storage
- * @param param_types: expected parameter types
- * @param params: parameters passed to the TA
+ * @param param_types Expected parameter types
+ * @param params Parameters passed to the TA
  */
 static TEE_Result get_public_key(uint32_t param_types, TEE_Param params[4])
 {

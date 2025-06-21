@@ -103,7 +103,7 @@ TEEC_Result retrieve_json_data(struct test_ctx *ctx, char *json_hash, size_t jso
     res = TEEC_InvokeCommand(&ctx->sess, TA_OFF_CHAIN_SECURE_STORAGE_RETRIEVE_JSON, &op, &origin);
 
     /* If the buffer is too short, return the expected size */
-    if (res == TEE_ERROR_SHORT_BUFFER)
+    if (res == TEEC_ERROR_SHORT_BUFFER)
     {
         printf("The provided buffer is too short, expected size: %zu\n", op.params[1].tmpref.size);
         return res;
@@ -264,7 +264,7 @@ TEEC_Result get_public_key(struct test_ctx *ctx, char *public_key, size_t public
     return res;
 }
 
-int main(void)
+int main(int argc, char *argv[])
 {
     struct test_ctx ctx;
     char json_data[JSON_MAX_SIZE];

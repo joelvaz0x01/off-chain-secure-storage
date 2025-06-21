@@ -20,7 +20,7 @@
  * @param hash_output Pointer to the output buffer for the hash
  * @param hash_output_sz Size of the output buffer, will be updated with actual size
  */
-static TEE_Result compute_sha256(char *data, size_t data_sz, char *hash_output, size_t *hash_output_sz)
+TEE_Result compute_sha256(char *data, size_t data_sz, char *hash_output, size_t *hash_output_sz)
 {
     TEE_Result res;
     TEE_OperationHandle op = TEE_HANDLE_NULL;
@@ -41,12 +41,7 @@ static TEE_Result compute_sha256(char *data, size_t data_sz, char *hash_output, 
     }
 
     /* Initialize the digest operation */
-    res = TEE_DigestUpdate(op, data, data_sz);
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("Failed to update digest, res=0x%08x", res);
-        goto exit;
-    }
+    TEE_DigestUpdate(op, data, data_sz);
 
     /* Finalize the digest and get the output */
     res = TEE_DigestDoFinal(op, NULL, 0, hash_output, hash_output_sz);
@@ -263,7 +258,7 @@ static TEE_Result generate_aes_key(TEE_ObjectHandle *key_handle)
  * @param signature Buffer to store the signature output
  * @param sig_len Pointer to size of signature buffer
  */
-static TEE_Result get_code_attestation(void *signature, size_t *sig_len)
+TEE_Result get_code_attestation(void *signature, size_t *sig_len)
 {
     TEE_Result res;
     TEE_ObjectHandle key_handle = TEE_HANDLE_NULL;
@@ -278,11 +273,12 @@ static TEE_Result get_code_attestation(void *signature, size_t *sig_len)
 
     /* Open the persistent Ed25519 key pair */
     res = TEE_OpenPersistentObject(
-        TEE_STORAGE_PRIVATE,
-        ED25519_STORAGE_NAME,
-        strlen(ED25519_STORAGE_NAME),
-        flags,
-        &key_handle);
+        TEE_STORAGE_PRIVATE,          /* storageID */
+        ED25519_STORAGE_NAME,         /* objectID */
+        strlen(ED25519_STORAGE_NAME), /* objectIDLen */
+        flags,                        /* flags */
+        &key_handle                   /* object */
+    );
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to open Ed25519 key pair for signing, res=0x%08x", res);
@@ -314,7 +310,7 @@ static TEE_Result get_code_attestation(void *signature, size_t *sig_len)
         op_handle,                                 /* operation */
         NULL, 0,                                   /* params, paramsCount */
         (void *)&TA_OFF_CHAIN_SECURE_STORAGE_UUID, /* digest */
-        sizeof(TEE_UUID),                          /* digestLen */
+        sizeof(TA_OFF_CHAIN_SECURE_STORAGE_UUID),  /* digestLen */
         signature,                                 /* signature */
         sig_len                                    /* signatureLen */
     );
@@ -335,7 +331,7 @@ static TEE_Result get_code_attestation(void *signature, size_t *sig_len)
  * @param public_key Buffer to store the public key
  * @param public_key_len Pointer to size of public key buffer; updated with actual public key length
  */
-static TEE_Result get_ed25519_public_key(char *public_key, size_t *public_key_len)
+TEE_Result get_ed25519_public_key(char *public_key, size_t *public_key_len)
 {
     TEE_Result res;
     TEE_ObjectHandle pubkey_handle = TEE_HANDLE_NULL;
@@ -355,7 +351,7 @@ static TEE_Result get_ed25519_public_key(char *public_key, size_t *public_key_le
         ED25519_STORAGE_NAME,         /* objectID */
         strlen(ED25519_STORAGE_NAME), /* objectIDLen */
         flags,                        /* flags */
-        &key_handle                   /* object */
+        &pubkey_handle                /* object */
     );
 
     if (res != TEE_SUCCESS)
@@ -387,7 +383,7 @@ static TEE_Result get_ed25519_public_key(char *public_key, size_t *public_key_le
  * @param ciphertext Pointer to the buffer where the encrypted data will be stored
  * @param ciphertext_len Length of the ciphertext buffer, will be updated with actual size
  */
-static TEE_Result encrypt_aes_data(const char *plaintext, size_t plaintext_len, char *ciphertext, size_t *ciphertext_len)
+TEE_Result encrypt_aes_data(const char *plaintext, size_t plaintext_len, char *ciphertext, size_t *ciphertext_len)
 {
     TEE_Result res;
     char iv[AES_BLOCK_SIZE];
@@ -426,22 +422,12 @@ static TEE_Result encrypt_aes_data(const char *plaintext, size_t plaintext_len, 
     }
 
     /* Generate a new random IV for each encryption */
-    res = TEE_GenerateRandom(iv, AES_BLOCK_SIZE);
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("Failed to generate random IV, res=0x%08x", res);
-        goto exit;
-    }
+    TEE_GenerateRandom(iv, AES_BLOCK_SIZE);
 
     /* Copy IV to start of ciphertext */
     memcpy(ciphertext, iv, AES_BLOCK_SIZE);
 
-    res = TEE_CipherInit(operation, iv, AES_BLOCK_SIZE);
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("Failed to initialize cipher operation, res=0x%08x", res);
-        goto exit;
-    }
+    TEE_CipherInit(operation, iv, AES_BLOCK_SIZE);
 
     /* Encrypt plaintext after the IV in ciphertext buffer */
     uint32_t enc_len = *ciphertext_len - AES_BLOCK_SIZE;
@@ -477,10 +463,9 @@ exit:
  * @param plaintext Pointer to the buffer where the decrypted data will be stored
  * @param plaintext_len Length of the plaintext buffer, will be updated with actual size
  */
-static TEE_Result decrypt_aes_data(const char *ciphertext, size_t ciphertext_len, char *plaintext, size_t *plaintext_len)
+TEE_Result decrypt_aes_data(const char *ciphertext, size_t ciphertext_len, char *plaintext, size_t *plaintext_len)
 {
     TEE_Result res;
-    char iv[AES_BLOCK_SIZE];
     TEE_ObjectHandle key_handle = TEE_HANDLE_NULL;
     TEE_OperationHandle operation = TEE_HANDLE_NULL;
     uint32_t read_bytes = 0;
@@ -528,12 +513,7 @@ static TEE_Result decrypt_aes_data(const char *ciphertext, size_t ciphertext_len
     }
 
     /* Initialize cipher with IV */
-    res = TEE_CipherInit(operation, iv, AES_BLOCK_SIZE);
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("Failed to initialize cipher operation, res=0x%08x", res);
-        goto exit;
-    }
+    TEE_CipherInit(operation, iv, AES_BLOCK_SIZE);
 
     uint32_t out_len = (uint32_t)*plaintext_len;
     res = TEE_CipherUpdate(operation, enc_data, enc_data_len, plaintext, &out_len);
