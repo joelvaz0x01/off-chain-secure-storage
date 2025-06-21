@@ -27,6 +27,7 @@
 
 #include <inttypes.h>
 #include <secure_storage_ta.h>
+#include <crypto_storage_ta.h>
 #include <tee_internal_api.h>
 #include <tee_internal_api_extensions.h>
 
@@ -183,10 +184,10 @@ static TEE_Result retrieve_json_object(uint32_t param_types, TEE_Param params[4]
     }
 
     res = TEE_ReadObjectData(
-        object, /* object */
-        json_data, /* buffer */
+        object,               /* object */
+        json_data,            /* buffer */
         object_info.dataSize, /* size */
-        &read_bytes /* counter */
+        &read_bytes           /* counter */
     );
 
     /* Copy read data to output buffer */
@@ -276,8 +277,7 @@ static TEE_Result hash_json_object(uint32_t param_types, TEE_Param params[4])
         TEE_PARAM_TYPE_MEMREF_INPUT,
         TEE_PARAM_TYPE_MEMREF_OUTPUT,
         TEE_PARAM_TYPE_NONE,
-        TEE_PARAM_TYPE_NONE
-    );
+        TEE_PARAM_TYPE_NONE);
 
     TEE_ObjectHandle object;
     TEE_Result res;
@@ -303,7 +303,6 @@ static TEE_Result hash_json_object(uint32_t param_types, TEE_Param params[4])
     if (!hash_output)
         return TEE_ERROR_OUT_OF_MEMORY;
 
-    
     /* Compute SHA256 hash of the JSON data */
     res = compute_sha256(json_data, json_data_sz, hash_output, &hash_output_sz);
     if (res != TEE_SUCCESS)
@@ -383,7 +382,7 @@ TEE_Result TA_InvokeCommandEntryPoint(void __unused *session, uint32_t command, 
     }
     else if (TA_OFF_CHAIN_SECURE_STORAGE_GET_PUBLIC_KEY == command)
     {
-        return get_pubk(param_types, params);
+        return get_public_key(param_types, params);
     }*/
     else
     {
