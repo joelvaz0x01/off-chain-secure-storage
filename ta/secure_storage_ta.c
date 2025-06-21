@@ -27,7 +27,7 @@
 
 #include <inttypes.h>
 #include <secure_storage_ta.h>
-#include <crypto_storage_ta.h>
+#include <crypto_operations.h>
 #include <tee_internal_api.h>
 #include <tee_internal_api_extensions.h>
 
@@ -208,65 +208,6 @@ exit:
 }
 
 /**
- * Compute SHA256 hash of the JSON data
- * @param json_data: pointer to the JSON data
- * @param json_data_sz: size of the JSON data
- * @param hash_output: pointer to the output buffer for the hash
- * @param hash_output_sz: size of the output buffer, will be updated with actual size
- */
-static TEE_Result compute_sha256(char *json_data, size_t json_data_sz, char *hash_output, size_t *hash_output_sz)
-{
-    TEE_ObjectHandle object;
-    TEE_Result res;
-
-    /* Check if the output buffer is large enough */
-    if (*hash_output_sz < TEE_SHA256_HASH_SIZE)
-    {
-        EMSG("Output buffer is too small, expected size: %zu", TEE_SHA256_HASH_SIZE);
-        return TEE_ERROR_SHORT_BUFFER;
-    }
-
-    /* Allocate transient object for SHA256 */
-    res = TEE_AllocateTransientObject(TEE_TYPE_SHA256, sizeof(TEE_ObjectHandle), &object);
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("Failed to allocate transient object, res=0x%08x", res);
-        return res;
-    }
-
-    /* Initialize the hash object */
-    res = TEE_InitRefHash(object, TEE_ALG_SHA256);
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("Failed to initialize hash object, res=0x%08x", res);
-        TEE_Free(object);
-        return res;
-    }
-
-    /* Update the hash with JSON data */
-    res = TEE_DigestUpdate(object, json_data, json_data_sz);
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("Failed to update hash, res=0x%08x", res);
-        TEE_Free(object);
-        return res;
-    }
-
-    /* Finalize the hash and get the output */
-    res = TEE_DigestDoFinal(object, NULL, 0, hash_output, hash_output_sz);
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("Failed to finalize hash, res=0x%08x", res);
-        TEE_Free(object);
-        return res;
-    }
-
-    /* Clean up */
-    TEE_Free(object);
-    return TEE_SUCCESS;
-}
-
-/**
  * Hash JSON object and store it in off-chain secure storage
  * @param param_types: expected parameter types
  * @param params: parameters passed to the TA
@@ -340,9 +281,109 @@ static TEE_Result hash_json_object(uint32_t param_types, TEE_Param params[4])
     return res;
 }
 
+/**
+ * Get attestation data of the TA
+ * @param param_types: expected parameter types
+ * @param params: parameters passed to the TA
+ */
+static TEE_Result get_attestation(uint32_t param_types, TEE_Param params[4])
+{
+    const uint32_t exp_param_types = TEE_PARAM_TYPES(
+        TEE_PARAM_TYPE_MEMREF_OUTPUT,
+        TEE_PARAM_TYPE_NONE,
+        TEE_PARAM_TYPE_NONE,
+        TEE_PARAM_TYPE_NONE);
+
+    TEE_Result res;
+    size_t attestation_data_sz = params[0].memref.size;
+    void *attestation_data = params[0].memref.buffer;
+
+    /* Safely get the invocation parameters */
+    if (param_types != exp_param_types)
+        return TEE_ERROR_BAD_PARAMETERS;
+
+    /* Get code attestation data */
+    res = get_code_attestation(attestation_data, &attestation_data_sz);
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to get code attestation data, res=0x%08x", res);
+        return res;
+    }
+
+    /* Copy the attestation data to the output parameter */
+    params[0].memref.size = attestation_data_sz;
+    params[0].memref.buffer = attestation_data;
+
+    return res;
+}
+
+// get_public_key
+static TEE_Result get_public_key(uint32_t param_types, TEE_Param params[4])
+{
+    const uint32_t exp_param_types = TEE_PARAM_TYPES(
+        TEE_PARAM_TYPE_MEMREF_OUTPUT,
+        TEE_PARAM_TYPE_NONE,
+        TEE_PARAM_TYPE_NONE,
+        TEE_PARAM_TYPE_NONE);
+
+    TEE_Result res;
+    size_t public_key_sz = params[0].memref.size;
+    void *public_key = params[0].memref.buffer;
+
+    /* Safely get the invocation parameters */
+    if (param_types != exp_param_types)
+        return TEE_ERROR_BAD_PARAMETERS;
+
+    /* Get the public key */
+    res = get_ed25519_public_key(public_key, &public_key_sz);
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to get public key, res=0x%08x", res);
+        return res;
+    }
+
+    /* Copy the public key to the output parameter */
+    params[0].memref.size = public_key_sz;
+    params[0].memref.buffer = public_key;
+
+    return res;
+}
+
+/**
+ * Create entry point for the TA
+ * This function is called when the TA is loaded into memory.
+ */
 TEE_Result TA_CreateEntryPoint(void)
 {
-    /* Nothing to do */
+    TEE_Result res;
+    TEE_ObjectHandle ed25519_key = TEE_HANDLE_NULL;
+    TEE_ObjectHandle aes_key = TEE_HANDLE_NULL;
+
+    /* Generate Ed25519 key pair */
+    res = generate_ed25519_key_pair(&ed25519_key);
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to generate Ed25519 key pair: 0x%08x", res);
+        return res;
+    }
+
+    /* Generate AES key */
+    res = generate_aes_key(&aes_key);
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to generate AES key: 0x%08x", res);
+        /* Clean up Ed25519 key handle before returning */
+        if (ed25519_key != TEE_HANDLE_NULL)
+            TEE_CloseObject(ed25519_key);
+        return res;
+    }
+
+    /* Close handles if they are no longer needed here */
+    if (ed25519_key != TEE_HANDLE_NULL)
+        TEE_CloseObject(ed25519_key);
+    if (aes_key != TEE_HANDLE_NULL)
+        TEE_CloseObject(aes_key);
+
     return TEE_SUCCESS;
 }
 
@@ -376,14 +417,14 @@ TEE_Result TA_InvokeCommandEntryPoint(void __unused *session, uint32_t command, 
     {
         return hash_json_object(param_types, params);
     }
-    /*else if (TA_OFF_CHAIN_SECURE_STORAGE_GET_ATTESTATION == command)
+    else if (TA_OFF_CHAIN_SECURE_STORAGE_GET_ATTESTATION == command)
     {
         return get_attestation(param_types, params);
     }
     else if (TA_OFF_CHAIN_SECURE_STORAGE_GET_PUBLIC_KEY == command)
     {
         return get_public_key(param_types, params);
-    }*/
+    }
     else
     {
         EMSG("Command ID 0x%x is not supported", command);

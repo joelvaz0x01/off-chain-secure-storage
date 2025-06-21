@@ -35,10 +35,10 @@
 /* TA API: UUID and command IDs */
 #include <secure_storage_ta.h>
 
-#define JSON_MAX_SIZE 7000         /* Maximum size of JSON data */
-#define JSON_HASH_SIZE 32          /* SHA256 hash size */
-#define ATTESTATION_DATA_SIZE 1024 /* Size of attestation data */
-#define PUBLIC_KEY_SIZE 256        /* Size of public key */
+#define JSON_MAX_SIZE 7000       /* Maximum size of JSON data */
+#define JSON_HASH_SIZE 32        /* Size of SHA256 hash (256 bits) */
+#define ATTESTATION_DATA_SIZE 64 /* Size of Ed25519 signature (512 bits) */
+#define PUBLIC_KEY_SIZE 32       /* Size of Ed25519 public key (256 bits) */
 
 /* TEE resources */
 struct test_ctx
@@ -108,7 +108,7 @@ TEEC_Result retrieve_json_data(struct test_ctx *ctx, char *json_hash, size_t jso
         printf("The provided buffer is too short, expected size: %zu\n", op.params[1].tmpref.size);
         return res;
     }
-    
+
     if (res != TEEC_SUCCESS)
         printf("Command RETRIEVE_JSON failed: 0x%x / %u\n", res, origin);
 

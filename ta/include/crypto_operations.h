@@ -6,8 +6,10 @@
 #include <tee_internal_api_extensions.h>
 
 static TEE_Result compute_sha256(char *json_data, size_t json_data_sz, char *hash_output, size_t *hash_output_sz);
-static TEE_Result generate_rsa_key_pair(TEE_ObjectHandle *key_pair_handle);
+static TEE_Result generate_ed25519_key_pair(TEE_ObjectHandle *key_pair_handle);
 static TEE_Result generate_aes_key(TEE_ObjectHandle *key_handle);
+static TEE_Result get_code_attestation(void *signature, size_t *sig_len);
+static TEE_Result get_ed25519_public_key(char *public_key, size_t *public_key_len);
 static TEE_Result encrypt_aes_data(const char *plaintext, size_t plaintext_len, char *ciphertext, size_t *ciphertext_len);
 static TEE_Result decrypt_aes_data(const char *ciphertext, size_t ciphertext_len, char *plaintext, size_t *plaintext_len);
 
