@@ -226,7 +226,7 @@ static TEE_Result retrieve_json_data(uint32_t param_types, TEE_Param params[4])
     res = TEE_ReadObjectData(object, encrypted_data, encrypted_data_sz, &read_bytes);
     if (res != TEE_SUCCESS || read_bytes != encrypted_data_sz)
     {
-        EMSG("TEE_ReadObjectData failed 0x%08x, read %u over %u", res, read_bytes, encrypted_data_sz);
+        EMSG("TEE_ReadObjectData failed 0x%08x, read %u over %lu", res, read_bytes, encrypted_data_sz);
         goto exit;
     }
 

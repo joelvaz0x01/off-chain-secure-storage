@@ -28,7 +28,7 @@ TEE_Result compute_sha256(char *data, size_t data_sz, char *hash_output, size_t 
     /* Check if the output buffer is large enough */
     if (*hash_output_sz < SHA256_HASH_SIZE)
     {
-        EMSG("Output buffer is too small, expected size: %zu bytes", SHA256_HASH_SIZE);
+        EMSG("Output buffer is too small, expected size: %u bytes", SHA256_HASH_SIZE);
         return TEE_ERROR_SHORT_BUFFER;
     }
 
@@ -44,7 +44,7 @@ TEE_Result compute_sha256(char *data, size_t data_sz, char *hash_output, size_t 
     TEE_DigestUpdate(op, data, data_sz);
 
     /* Finalize the digest and get the output */
-    res = TEE_DigestDoFinal(op, NULL, 0, hash_output, hash_output_sz);
+    res = TEE_DigestDoFinal(op, NULL, 0, hash_output, &hash_output_sz);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to finalize digest, res=0x%08x", res);
@@ -60,13 +60,14 @@ exit:
  * Generate Ed25519 public and private key and store it in secure storage
  * @param key_pair_handle Pointer to the handle of the Ed25519 key pair object
  */
-static TEE_Result generate_ed25519_key_pair(TEE_ObjectHandle *key_pair_handle)
+TEE_Result generate_ed25519_key_pair(TEE_ObjectHandle *key_pair_handle)
 {
     TEE_Result res;
     uint32_t flags = TEE_DATA_FLAG_ACCESS_READ; /* we need read and write access */
     TEE_ObjectHandle transient_key = TEE_HANDLE_NULL;
     TEE_ObjectHandle pubkey_object = TEE_HANDLE_NULL;
     char public_key[ED25519_PUBLIC_KEY_SIZE];
+    size_t public_key_len = sizeof(public_key);
 
     /* Check if the key pair already exists in secure storage */
     res = TEE_OpenPersistentObject(
@@ -113,7 +114,7 @@ static TEE_Result generate_ed25519_key_pair(TEE_ObjectHandle *key_pair_handle)
         transient_key,                 /* object */
         TEE_ATTR_ED25519_PUBLIC_VALUE, /* attributeID */
         public_key,                    /* buffer */
-        sizeof(public_key)             /* size */
+        &public_key_len                /* bufferLen */
     );
 
     if (res != TEE_SUCCESS)
@@ -179,7 +180,7 @@ static TEE_Result generate_ed25519_key_pair(TEE_ObjectHandle *key_pair_handle)
  * Generate a new AES key and store it in secure storage
  * @param key_handle Pointer to the handle of the AES key object
  */
-static TEE_Result generate_aes_key(TEE_ObjectHandle *key_handle)
+TEE_Result generate_aes_key(TEE_ObjectHandle *key_handle)
 {
     TEE_Result res;
     uint32_t flags = TEE_DATA_FLAG_ACCESS_READ; /* we only need read access */
@@ -263,6 +264,7 @@ TEE_Result get_code_attestation(void *signature, size_t *sig_len)
     TEE_Result res;
     TEE_ObjectHandle key_handle = TEE_HANDLE_NULL;
     uint32_t flags = TEE_DATA_FLAG_ACCESS_READ;
+    TEE_UUID uuid = TA_OFF_CHAIN_SECURE_STORAGE_UUID;
 
     /* Check if the signature buffer is large enough */
     if (*sig_len < ED25519_SIGNATURE_SIZE)
@@ -307,12 +309,12 @@ TEE_Result get_code_attestation(void *signature, size_t *sig_len)
 
     /* Sign the UUID */
     res = TEE_AsymmetricSignDigest(
-        op_handle,                                 /* operation */
-        NULL, 0,                                   /* params, paramsCount */
-        (void *)&TA_OFF_CHAIN_SECURE_STORAGE_UUID, /* digest */
-        sizeof(TA_OFF_CHAIN_SECURE_STORAGE_UUID),  /* digestLen */
-        signature,                                 /* signature */
-        sig_len                                    /* signatureLen */
+        op_handle,          /* operation */
+        NULL, 0,            /* params, paramsCount */
+        (void *)&uuid,      /* digest */
+        sizeof(uuid),       /* digestLen */
+        signature,          /* signature */
+        (uint32_t *)sig_len /* signatureLen */
     );
 
     if (res != TEE_SUCCESS)
@@ -341,7 +343,7 @@ TEE_Result get_ed25519_public_key(char *public_key, size_t *public_key_len)
     /* Check if the public key buffer is large enough */
     if (*public_key_len < ED25519_PUBLIC_KEY_SIZE)
     {
-        EMSG("Public key buffer too small, expected size: %zu bytes", ED25519_PUBLIC_KEY_SIZE);
+        EMSG("Public key buffer too small, expected size: %u bytes", ED25519_PUBLIC_KEY_SIZE);
         return TEE_ERROR_SHORT_BUFFER;
     }
 
@@ -473,7 +475,7 @@ TEE_Result decrypt_aes_data(const char *ciphertext, size_t ciphertext_len, char 
     /* Check if the output buffer is large enough */
     if (ciphertext_len < AES_BLOCK_SIZE)
     {
-        EMSG("Output buffer is too small, expected size: %zu bytes", AES_BLOCK_SIZE);
+        EMSG("Output buffer is too small, expected size: %u bytes", AES_BLOCK_SIZE);
         return TEE_ERROR_SHORT_BUFFER;
     }
 
