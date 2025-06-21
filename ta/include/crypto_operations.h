@@ -8,7 +8,6 @@
 static TEE_Result compute_sha256(char *json_data, size_t json_data_sz, char *hash_output, size_t *hash_output_sz);
 static TEE_Result generate_rsa_key_pair(TEE_ObjectHandle *key_pair_handle);
 static TEE_Result generate_aes_key(TEE_ObjectHandle *key_handle);
-static TEE_Result generate_aes_iv(void *iv);
 static TEE_Result encrypt_aes_data(const char *plaintext, size_t plaintext_len, char *ciphertext, size_t *ciphertext_len);
 static TEE_Result decrypt_aes_data(const char *ciphertext, size_t ciphertext_len, char *plaintext, size_t *plaintext_len);
 
