@@ -37,8 +37,13 @@
 
 #define JSON_MAX_SIZE 7000       /* Maximum size of JSON data */
 #define JSON_HASH_SIZE 32        /* Size of SHA256 hash (256 bits) */
-#define ATTESTATION_DATA_SIZE 64 /* Size of Ed25519 signature (512 bits) */
-#define PUBLIC_KEY_SIZE 32       /* Size of Ed25519 public key (256 bits) */
+
+#define RSA_KEY_SIZE_BITS 2048
+#define RSA_MODULUS_SIZE (RSA_KEY_SIZE_BITS / 8)
+#define RSA_EXPONENT_SIZE 4
+
+#define PUBLIC_KEY_SIZE (RSA_MODULUS_SIZE + RSA_EXPONENT_SIZE)
+#define ATTESTATION_DATA_SIZE (RSA_KEY_SIZE_BITS / 8)
 
 /* TEE resources */
 struct test_ctx
@@ -72,11 +77,11 @@ void terminate_tee_session(struct test_ctx *ctx)
 
 /**
  * Retrieve JSON data in secure storage
- * @param ctx: pointer to the test context
- * @param json_hash: SHA256 hash of the JSON data
- * @param json_hash_len: length of the JSON hash
- * @param json_data: JSON data to be stored
- * @param json_data_len: length of the JSON data
+ * @param ctx Pointer to the test context
+ * @param json_hash SHA256 hash of the JSON data
+ * @param json_hash_len Length of the JSON hash
+ * @param json_data JSON data to be stored
+ * @param json_data_len Length of the JSON data
  */
 TEEC_Result retrieve_json_data(struct test_ctx *ctx, char *json_hash, size_t json_hash_len, char *json_data, size_t json_data_len)
 {
@@ -120,12 +125,12 @@ TEEC_Result retrieve_json_data(struct test_ctx *ctx, char *json_hash, size_t jso
 
 /**
  * Store JSON data from secure storage
- * @param ctx: pointer to the test context
- * @param iot_device_id: ID of the IoT device
- * @param json_data: buffer to store the retrieved JSON data
- * @param json_data_len: length of the JSON data buffer
- * @param json_hash: buffer to store the SHA256 hash of the JSON data
- * @param json_hash_len: length of the JSON hash buffer
+ * @param ctx Pointer to the test context
+ * @param iot_device_id ID of the IoT device
+ * @param json_data Buffer to store the retrieved JSON data
+ * @param json_data_len Length of the JSON data buffer
+ * @param json_hash Buffer to store the SHA256 hash of the JSON data
+ * @param json_hash_len Length of the JSON hash buffer
  */
 TEEC_Result store_json_data(struct test_ctx *ctx, char *iot_device_id, char *json_data, size_t json_data_len, char *json_hash, size_t json_hash_len)
 {
@@ -164,11 +169,11 @@ TEEC_Result store_json_data(struct test_ctx *ctx, char *iot_device_id, char *jso
 
 /**
  * Get SHA256 hash of JSON data
- * @param ctx: pointer to the test context
- * @param json_data: JSON data to be hashed
- * @param json_data_len: length of the JSON data
- * @param hash_output: buffer to store the SHA256 hash of the JSON data
- * @param hash_output_len: length of the hash output buffer
+ * @param ctx Pointer to the test context
+ * @param json_data JSON data to be hashed
+ * @param json_data_len Length of the JSON data
+ * @param hash_output Buffer to store the SHA256 hash of the JSON data
+ * @param hash_output_len Length of the hash output buffer
  */
 TEEC_Result hash_json_data(struct test_ctx *ctx, char *json_data, size_t json_data_len, char *hash_output, size_t hash_output_len)
 {
@@ -202,9 +207,9 @@ TEEC_Result hash_json_data(struct test_ctx *ctx, char *json_data, size_t json_da
 
 /**
  * Get attestation data of the TA
- * @param ctx: pointer to the test context
- * @param attestation_data: buffer to store the attestation data
- * @param attestation_data_len: length of the attestation data buffer
+ * @param ctx Pointer to the test context
+ * @param attestation_data Buffer to store the attestation data
+ * @param attestation_data_len Length of the attestation data buffer
  */
 TEEC_Result get_attestation_data(struct test_ctx *ctx, char *attestation_data, size_t attestation_data_len)
 {
@@ -234,9 +239,9 @@ TEEC_Result get_attestation_data(struct test_ctx *ctx, char *attestation_data, s
 
 /**
  * Get public key of the TA
- * @param ctx: pointer to the test context
- * @param public_key: buffer to store the public key
- * @param public_key_len: length of the public key buffer
+ * @param ctx Pointer to the test context
+ * @param public_key Buffer to store the public key
+ * @param public_key_len Length of the public key buffer
  */
 TEEC_Result get_public_key(struct test_ctx *ctx, char *public_key, size_t public_key_len)
 {
@@ -274,7 +279,7 @@ int main(int argc, char *argv[])
     TEEC_Result res;
 
     /* List of commands available */
-    if (argc < 3)
+    if (argc < 2)
     {
         printf("Usage: %s <command>\n\n", argv[0]);
         printf("Commands:\n");

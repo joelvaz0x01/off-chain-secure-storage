@@ -415,7 +415,7 @@ static TEE_Result get_public_key(uint32_t param_types, TEE_Param params[4])
     }
 
     /* Get the public key */
-    res = get_ed25519_public_key(public_key, &public_key_sz);
+    res = get_rsa_public_key(public_key, &public_key_sz);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to get public key, res=0x%08x", res);
@@ -443,14 +443,14 @@ exit:
 TEE_Result TA_CreateEntryPoint(void)
 {
     TEE_Result res;
-    TEE_ObjectHandle ed25519_key = TEE_HANDLE_NULL;
+    TEE_ObjectHandle rsa_key = TEE_HANDLE_NULL;
     TEE_ObjectHandle aes_key = TEE_HANDLE_NULL;
 
-    /* Generate Ed25519 key pair */
-    res = generate_ed25519_key_pair(&ed25519_key);
+    /* Generate RSA key pair */
+    res = generate_rsa_key_pair(&rsa_key);
     if (res != TEE_SUCCESS)
     {
-        EMSG("Failed to generate Ed25519 key pair: 0x%08x", res);
+        EMSG("Failed to generate RSA key pair: 0x%08x", res);
         return res;
     }
 
@@ -459,15 +459,15 @@ TEE_Result TA_CreateEntryPoint(void)
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to generate AES key: 0x%08x", res);
-        /* Clean up Ed25519 key handle before returning */
-        if (ed25519_key != TEE_HANDLE_NULL)
-            TEE_CloseObject(ed25519_key);
+        /* Clean up RSA key handle before returning */
+        if (rsa_key != TEE_HANDLE_NULL)
+            TEE_CloseObject(rsa_key);
         return res;
     }
 
     /* Close handles if they are no longer needed here */
-    if (ed25519_key != TEE_HANDLE_NULL)
-        TEE_CloseObject(ed25519_key);
+    if (rsa_key != TEE_HANDLE_NULL)
+        TEE_CloseObject(rsa_key);
     if (aes_key != TEE_HANDLE_NULL)
         TEE_CloseObject(aes_key);
 

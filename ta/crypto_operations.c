@@ -2,10 +2,13 @@
 #include <secure_storage_ta.h>
 #include <string.h>
 
-#define ED25519_STORAGE_NAME "ed25519KeyPair"
-#define ED25519_PUBLIC_KEY_NAME "ed25519PublicKey"
-#define ED25519_SIGNATURE_SIZE 64
-#define ED25519_PUBLIC_KEY_SIZE 32
+#define RSA_KEYPAIR_STORAGE_NAME "rsaKeyPair"
+#define RSA_PUBLIC_KEY_STORAGE_NAME "rsaPublicKey"
+#define RSA_KEY_SIZE_BITS 2048
+#define RSA_MODULUS_SIZE (RSA_KEY_SIZE_BITS / 8)
+#define RSA_EXPONENT_SIZE 4
+#define RSA_PUBLIC_KEY_SIZE (RSA_MODULUS_SIZE + RSA_EXPONENT_SIZE)
+#define RSA_SIGNATURE_SIZE (RSA_KEY_SIZE_BITS / 8)
 
 #define AES_KEY_STORAGE_NAME "aesKey"
 #define AES_BLOCK_SIZE 16
@@ -57,122 +60,141 @@ exit:
 }
 
 /**
- * Generate Ed25519 public and private key and store it in secure storage
- * @param key_pair_handle Pointer to the handle of the Ed25519 key pair object
+ * Generate RSA key pair and store it in secure storage
+ * @param key_pair_handle Pointer to the handle of the RSA key pair object
  */
-TEE_Result generate_ed25519_key_pair(TEE_ObjectHandle *key_pair_handle)
+TEE_Result generate_rsa_key_pair(TEE_ObjectHandle *key_pair_handle)
 {
     TEE_Result res;
-    uint32_t flags = TEE_DATA_FLAG_ACCESS_READ; /* we need read and write access */
+    uint32_t flags = TEE_DATA_FLAG_ACCESS_READ;
     TEE_ObjectHandle transient_key = TEE_HANDLE_NULL;
-    TEE_ObjectHandle pubkey_object = TEE_HANDLE_NULL;
-    char public_key[ED25519_PUBLIC_KEY_SIZE];
-    size_t public_key_len = sizeof(public_key);
+    TEE_ObjectHandle pubkey_transient = TEE_HANDLE_NULL;
+    TEE_ObjectHandle persistent_pubkey = TEE_HANDLE_NULL;
 
-    /* Check if the key pair already exists in secure storage */
+    /* Try to open existing key pair */
     res = TEE_OpenPersistentObject(
-        TEE_STORAGE_PRIVATE,          /* storageID */
-        ED25519_STORAGE_NAME,         /* objectID */
-        strlen(ED25519_STORAGE_NAME), /* objectIDLen */
-        flags,                        /* flags */
-        key_pair_handle               /* object */
+        TEE_STORAGE_PRIVATE,              /* storageID */
+        RSA_KEYPAIR_STORAGE_NAME,         /* objectID */
+        strlen(RSA_KEYPAIR_STORAGE_NAME), /* objectIDLen */
+        flags,                            /* flags */
+        key_pair_handle                   /* object */
     );
-
     if (res == TEE_SUCCESS)
     {
-        DMSG("Ed25519 key pair retrieved from persistent storage");
-        return TEE_SUCCESS; /* Key pair already exists */
+        DMSG("RSA key pair already exists in persistent storage");
+        return TEE_SUCCESS;
     }
-
     if (res != TEE_ERROR_ITEM_NOT_FOUND)
     {
-        EMSG("Failed to open Ed25519 key pair object: 0x%08x", res);
-        return res; /* Error opening the key pair */
-    }
-
-    /* Key pair does not exist, generate a new one */
-    DMSG("Generating new Ed25519 key pair");
-
-    res = TEE_AllocateTransientObject(TEE_TYPE_ED25519_KEYPAIR, 0, &transient_key);
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("Failed to allocate transient object for key pair, res=0x%08x", res);
+        EMSG("Failed to open RSA key pair: 0x%08x", res);
         return res;
     }
 
-    /* Generate key pair */
-    res = TEE_GenerateKey(transient_key, 0, NULL, 0);
+    DMSG("Generating new RSA key pair");
+
+    /* Allocate RSA keypair transient object */
+    res = TEE_AllocateTransientObject(TEE_TYPE_RSA_KEYPAIR, RSA_KEY_SIZE_BITS, &transient_key);
     if (res != TEE_SUCCESS)
     {
-        EMSG("Failed to generate Ed25519 key pair, res=0x%08x", res);
+        EMSG("Failed to allocate RSA key pair object: 0x%08x", res);
+        return res;
+    }
+
+    /* Generate key pair with default exponent */
+    res = TEE_GenerateKey(transient_key, RSA_KEY_SIZE_BITS, NULL, 0);
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to generate RSA key pair: 0x%08x", res);
         TEE_FreeTransientObject(transient_key);
         return res;
     }
 
-    /* Extract public key */
-    res = TEE_GetObjectBufferAttribute(
-        transient_key,                 /* object */
-        TEE_ATTR_ED25519_PUBLIC_VALUE, /* attributeID */
-        public_key,                    /* buffer */
-        &public_key_len                /* bufferLen */
-    );
-
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("Failed to extract Ed25519 public key: 0x%08x", res);
-        TEE_FreeTransientObject(transient_key);
-        return res;
-    }
-
-    /* Store the key pair */
+    /* Persist the key pair */
     flags |= TEE_DATA_FLAG_ACCESS_WRITE_META; /* we need write-meta access */
     res = TEE_CreatePersistentObject(
-        TEE_STORAGE_PRIVATE,          /* storageID */
-        ED25519_STORAGE_NAME,         /* objectID */
-        strlen(ED25519_STORAGE_NAME), /* objectIDLen */
-        flags,                        /* flags */
-        transient_key,                /* attributes */
-        NULL, 0,                      /* initialData , initialDataLen */
-        key_pair_handle               /* object */
+        TEE_STORAGE_PRIVATE,              /* storageID */
+        RSA_KEYPAIR_STORAGE_NAME,         /* objectID */
+        strlen(RSA_KEYPAIR_STORAGE_NAME), /* objectIDLen */
+        flags,                            /* flags */
+        transient_key,                    /* object */
+        NULL, 0,                          /* initialData , initialDataLen */
+        key_pair_handle                   /* object handle */
     );
-
     if (res != TEE_SUCCESS)
     {
-        EMSG("Failed to store Ed25519 key pair, res=0x%08x", res);
+        EMSG("Failed to persist RSA key pair: 0x%08x", res);
         TEE_FreeTransientObject(transient_key);
         return res;
     }
 
-    /* Store the public key in persistent storage */
+    /* Extract public key components */
+    uint8_t modulus[256];
+    uint8_t exponent[8];
+    size_t mod_len = sizeof(modulus);
+    size_t exp_len = sizeof(exponent);
+
+    res = TEE_GetObjectBufferAttribute(transient_key, TEE_ATTR_RSA_MODULUS, modulus, &mod_len);
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to get modulus: 0x%08x", res);
+        return res;
+    }
+
+    res = TEE_GetObjectBufferAttribute(transient_key, TEE_ATTR_RSA_PUBLIC_EXPONENT, exponent, &exp_len);
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to get exponent: 0x%08x", res);
+        return res;
+    }
+
+    /* Create RSA public key transient object */
+    res = TEE_AllocateTransientObject(TEE_TYPE_RSA_PUBLIC_KEY, RSA_KEY_SIZE_BITS, &pubkey_transient);
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to allocate public key object: 0x%08x", res);
+        return res;
+    }
+
+    TEE_Attribute pub_attrs[2];
+    TEE_InitRefAttribute(&pub_attrs[0], TEE_ATTR_RSA_MODULUS, modulus, mod_len);
+    TEE_InitRefAttribute(&pub_attrs[1], TEE_ATTR_RSA_PUBLIC_EXPONENT, exponent, exp_len);
+
+    res = TEE_PopulateTransientObject(pubkey_transient, pub_attrs, 2);
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to populate public key: 0x%08x", res);
+        TEE_FreeTransientObject(pubkey_transient);
+        return res;
+    }
+
+    /* Store public key persistently */
     res = TEE_CreatePersistentObject(
-        TEE_STORAGE_PRIVATE,             /* storageID */
-        ED25519_PUBLIC_KEY_NAME,         /* objectID */
-        strlen(ED25519_PUBLIC_KEY_NAME), /* objectIDLen */
-        flags,                           /* flags */
-        TEE_HANDLE_NULL,                 /* attributes */
-        public_key,                      /* initialData */
-        sizeof(public_key),              /* initialDataLen */
-        &pubkey_object                   /* object */
-    );
+        TEE_STORAGE_PRIVATE,
+        RSA_PUBLIC_KEY_STORAGE_NAME,
+        strlen(RSA_PUBLIC_KEY_STORAGE_NAME),
+        flags,
+        pubkey_transient,
+        NULL, 0,
+        &persistent_pubkey);
 
     if (res != TEE_SUCCESS)
     {
-        EMSG("Failed to store Ed25519 public key, res=0x%08x", res);
+        EMSG("Failed to store public key: 0x%08x", res);
 
-        /* Clean up the key pair from persistent storage if public key storage fails */
         if (*key_pair_handle != TEE_HANDLE_NULL)
         {
             TEE_CloseAndDeletePersistentObject1(*key_pair_handle);
             *key_pair_handle = TEE_HANDLE_NULL;
         }
 
-        TEE_FreeTransientObject(transient_key);
+        TEE_FreeTransientObject(pubkey_transient);
         return res;
     }
 
-    TEE_CloseObject(pubkey_object);
+    TEE_CloseObject(persistent_pubkey);
+    TEE_FreeTransientObject(pubkey_transient);
 
-    DMSG("Ed25519 key pair successfully generated and stored");
+    DMSG("RSA key pair and public key successfully generated and stored");
     return TEE_SUCCESS;
 }
 
@@ -183,6 +205,8 @@ TEE_Result generate_ed25519_key_pair(TEE_ObjectHandle *key_pair_handle)
 TEE_Result generate_aes_key(TEE_ObjectHandle *key_handle)
 {
     TEE_Result res;
+    TEE_ObjectHandle transient_key = TEE_HANDLE_NULL;
+    TEE_ObjectHandle persistent_key = TEE_HANDLE_NULL;
     uint32_t flags = TEE_DATA_FLAG_ACCESS_READ; /* we only need read access */
 
     /* Verify if the AES key already exists in secure storage */
@@ -209,10 +233,8 @@ TEE_Result generate_aes_key(TEE_ObjectHandle *key_handle)
     /* Key doesn't exist, generate a new one */
     DMSG("Generating new AES key");
 
-    TEE_ObjectHandle transient_key = TEE_HANDLE_NULL;
-
     /* Allocate a transient object for AES */
-    res = TEE_AllocateTransientObject(TEE_TYPE_AES, sizeof(TEE_ObjectHandle), &transient_key);
+    res = TEE_AllocateTransientObject(TEE_TYPE_AES, AES_KEY_SIZE, &transient_key);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to allocate transient object for AES, res=0x%08x", res);
@@ -220,7 +242,7 @@ TEE_Result generate_aes_key(TEE_ObjectHandle *key_handle)
     }
 
     /* Generate a random AES key */
-    res = TEE_GenerateKey(*key_handle, AES_KEY_SIZE, NULL, 0);
+    res = TEE_GenerateKey(transient_key, AES_KEY_SIZE, NULL, 0);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to generate AES key, res=0x%08x", res);
@@ -229,7 +251,6 @@ TEE_Result generate_aes_key(TEE_ObjectHandle *key_handle)
     }
 
     /* Store the AES key in secure storage */
-    TEE_ObjectHandle persistent_key;
     res = TEE_CreatePersistentObject(
         TEE_STORAGE_PRIVATE,          /* storageID */
         AES_KEY_STORAGE_NAME,         /* objectID */
@@ -267,29 +288,34 @@ TEE_Result get_code_attestation(void *signature, size_t *sig_len)
     TEE_UUID uuid = TA_OFF_CHAIN_SECURE_STORAGE_UUID;
 
     /* Check if the signature buffer is large enough */
-    if (*sig_len < ED25519_SIGNATURE_SIZE)
+    if (*sig_len < RSA_SIGNATURE_SIZE)
     {
-        EMSG("Signature buffer too small, expected size: %zu bytes", ED25519_SIGNATURE_SIZE);
+        EMSG("Signature buffer too small, expected size: %zu bytes", RSA_SIGNATURE_SIZE);
         return TEE_ERROR_SHORT_BUFFER;
     }
 
-    /* Open the persistent Ed25519 key pair */
+    /* Open the persistent RSA key pair */
     res = TEE_OpenPersistentObject(
-        TEE_STORAGE_PRIVATE,          /* storageID */
-        ED25519_STORAGE_NAME,         /* objectID */
-        strlen(ED25519_STORAGE_NAME), /* objectIDLen */
-        flags,                        /* flags */
-        &key_handle                   /* object */
+        TEE_STORAGE_PRIVATE,              /* storageID */
+        RSA_KEYPAIR_STORAGE_NAME,         /* objectID */
+        strlen(RSA_KEYPAIR_STORAGE_NAME), /* objectIDLen */
+        flags,                            /* flags */
+        &key_handle                       /* object */
     );
     if (res != TEE_SUCCESS)
     {
-        EMSG("Failed to open Ed25519 key pair for signing, res=0x%08x", res);
+        EMSG("Failed to open RSA key pair for signing, res=0x%08x", res);
         return res;
     }
 
     /* Prepare operation handle for signing */
     TEE_OperationHandle op_handle = TEE_HANDLE_NULL;
-    res = TEE_AllocateOperation(&op_handle, TEE_ALG_ED25519, TEE_MODE_SIGN, 0);
+    res = TEE_AllocateOperation(
+        &op_handle,                           /* operation */
+        TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256, /* algorithm */
+        TEE_MODE_SIGN,                        /* mode */
+        RSA_KEY_SIZE_BITS                     /* maxKeySize */
+    );
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to allocate signing operation, res=0x%08x", res);
@@ -317,64 +343,78 @@ TEE_Result get_code_attestation(void *signature, size_t *sig_len)
         (uint32_t *)sig_len /* signatureLen */
     );
 
+    TEE_FreeOperation(op_handle);
+    TEE_CloseObject(key_handle);
+
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to sign UUID, res=0x%08x", res);
     }
-    TEE_FreeOperation(op_handle);
-    TEE_CloseObject(key_handle);
 
-    DMSG("UUID successfully signed with Ed25519");
+    DMSG("UUID successfully signed with RSA");
     return res;
 }
 
 /**
- * Retrieve the public key of the Ed25519 key pair stored in secure storage
+ * Retrieve the public key of the RSA key pair stored in secure storage
  * @param public_key Buffer to store the public key
  * @param public_key_len Pointer to size of public key buffer; updated with actual public key length
  */
-TEE_Result get_ed25519_public_key(char *public_key, size_t *public_key_len)
+TEE_Result get_rsa_public_key(char *public_key, size_t *public_key_len)
 {
     TEE_Result res;
     TEE_ObjectHandle pubkey_handle = TEE_HANDLE_NULL;
     uint32_t flags = TEE_DATA_FLAG_ACCESS_READ;
-    uint32_t read_bytes = 0;
+    char modulus[RSA_MODULUS_SIZE];
+    char exponent[RSA_EXPONENT_SIZE];
+    size_t mod_len = sizeof(modulus);
+    size_t exp_len = sizeof(exponent);
 
     /* Check if the public key buffer is large enough */
-    if (*public_key_len < ED25519_PUBLIC_KEY_SIZE)
+    if (*public_key_len < RSA_PUBLIC_KEY_SIZE)
     {
-        EMSG("Public key buffer too small, expected size: %u bytes", ED25519_PUBLIC_KEY_SIZE);
+        EMSG("Public key buffer too small, expected size: %u bytes", RSA_PUBLIC_KEY_SIZE);
         return TEE_ERROR_SHORT_BUFFER;
     }
 
-    /* Open the persistent Ed25519 key pair */
+    /* Open the persistent RSA key pair */
     res = TEE_OpenPersistentObject(
-        TEE_STORAGE_PRIVATE,          /* storageID */
-        ED25519_STORAGE_NAME,         /* objectID */
-        strlen(ED25519_STORAGE_NAME), /* objectIDLen */
-        flags,                        /* flags */
-        &pubkey_handle                /* object */
+        TEE_STORAGE_PRIVATE,              /* storageID */
+        RSA_KEYPAIR_STORAGE_NAME,         /* objectID */
+        strlen(RSA_KEYPAIR_STORAGE_NAME), /* objectIDLen */
+        flags,                            /* flags */
+        &pubkey_handle                    /* object */
     );
-
     if (res != TEE_SUCCESS)
     {
-        EMSG("Failed to open Ed25519 key pair for public key retrieval, res=0x%08x", res);
+        EMSG("Failed to open RSA key pair for public key retrieval, res=0x%08x", res);
         return res;
     }
 
-    /* Get the public key */
-    res = TEE_ReadObjectData(pubkey_handle, public_key, ED25519_PUBLIC_KEY_SIZE, &read_bytes);
-    TEE_CloseObject(pubkey_handle);
-
-    if (res != TEE_SUCCESS || read_bytes != ED25519_PUBLIC_KEY_SIZE)
+    /* Read modulus */
+    res = TEE_GetObjectBufferAttribute(pubkey_handle, TEE_ATTR_RSA_MODULUS, modulus, &mod_len);
+    if (res != TEE_SUCCESS)
     {
-        EMSG("Failed to read public key data, res=0x%08x, bytes read: %u", res, read_bytes);
+        EMSG("Failed to get modulus: 0x%08x", res);
+        TEE_CloseObject(pubkey_handle);
         return res;
     }
 
-    *public_key_len = read_bytes;
+    /* Read public exponent */
+    res = TEE_GetObjectBufferAttribute(pubkey_handle, TEE_ATTR_RSA_PUBLIC_EXPONENT, exponent, &exp_len);
+    TEE_CloseObject(pubkey_handle);
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to get exponent: 0x%08x", res);
+        return res;
+    }
 
-    DMSG("Ed25519 public key successfully retrieved");
+    /* Copy modulus and exponent into output buffer */
+    TEE_MemMove(public_key, modulus, mod_len);
+    TEE_MemMove(public_key + mod_len, exponent, exp_len);
+    *public_key_len = mod_len + exp_len;
+
+    DMSG("RSA public key successfully retrieved");
     return TEE_SUCCESS;
 }
 
