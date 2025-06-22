@@ -163,16 +163,12 @@ make -j$(nproc)
 1. **Clone Project Repository**
 ```bash
 git clone <repository_url>
-cd optee-offchain-storage
 ```
 
 2. **Integrate with OP-TEE Build System**
 ```bash
-# Copy TA to OP-TEE examples
-cp -r ta/ $OPTEE_DIR/optee_examples/off_chain_secure_storage/
-
-# Copy CA to OP-TEE examples  
-cp -r host/ $OPTEE_DIR/optee_examples/off_chain_secure_storage/
+# Copy repository to OP-TEE examples
+cp -r optee-offchain-storage $OPTEE_DIR/optee_examples/off_chain_secure_storage/
 
 # Build the project
 cd $OPTEE_DIR/build
@@ -190,10 +186,9 @@ make run-only
 ### Application Execution
 1. Press `c` or type `cont` to start the OS
 2. Login as `root` in Normal World console
-3. Navigate to application directory:
+3. Execute the application:
 ```bash
-cd /usr/bin
-./off_chain_secure_storage --help
+/usr/bin/off_chain_secure_storage --help
 ```
 
 
