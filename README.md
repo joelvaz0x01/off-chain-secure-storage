@@ -27,29 +27,34 @@ This project implements a secure off-chain data storage solution using OP-TEE (O
 ## Project Structure
 ```
 optee-offchain-storage/
-├── README.md                     # This file
-├── LICENSE                       # Project license
-├── Makefile                      # Build configuration
-├── host/                         # Client Application (Normal World)
-│   ├── main.c                    # Main CLI application
-│   ├── Makefile                  # Host build configuration
-│   └── include/
-│       └── secure_storage_ta.h   # TA interface definitions
-├── ta/                           # Trusted Application (Secure World)
-│   ├── secure_storage_ta.c       # Main TA implementation
+├── documentation/
+│   ├── images/               # Images
+│   └── DOCUMENTATION.md      # Documentation
+│
+├── host/             # Client Application (Normal World)
+│   ├── main.c        # Main CLI application
+│   └── Makefile
+│
+├── iot-json/                              # Sample IoT data files
+│   ├── environmental-monitoring.json      # Environmental monitoring data sample
+│   ├── healthcare-iot.json                # Healthcare IoT data sample
+│   └── industrial-iot.json                # Industrial IoT data sample
+│
+├── ta/                               # Trusted Application (Secure World)
 │   ├── include/
-│   │   ├── secure_storage_ta.h      # TA header file
-│   │   └── crypto_operations.h      # Functions and macros for cryptography
-|   ├── user_ta_header_defines.h     # TA configuration
-│   ├── sub.mk                       
-│   └── Makefile                     
-├── iot-json/                     # Sample IoT data files
-│   ├── environmental-monitoring.json
-│   ├── healthcare-iot.json
-│   └── industrial-iot.json
-└── documentation/                
-    ├── DOCUMENTATION.md          # Documentation
-    └── images/                   # Images
+│   │   ├── crypto_operations.h       # Functions and macros for cryptography
+│   │   └── secure_storage_ta.h       # TA header file
+│   ├── crypto_operations.c           # Main TA implementation
+│   ├── secure_storage_ta.c           # Main TA implementation
+│   ├── Makefile
+│   ├── user_ta_header_defines.h      # TA configuration
+│   └── sub.mk
+│
+├── Android.mk
+├── CMakeLists.txt
+├── LICENSE
+├── Makefile            
+└── README.md
 ```
 
 ## Architecture
