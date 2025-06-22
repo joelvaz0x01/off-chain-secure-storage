@@ -35,7 +35,16 @@
 /* TA API: UUID and command IDs */
 #include <secure_storage_ta.h>
 
-#define JSON_MAX_SIZE 7000 /* Maximum size of JSON data */
+#define DEVICE_ID_MAX_SIZE 64 /* Maximum size of IoT device ID */
+#define JSON_MAX_SIZE 7000    /* Maximum size of JSON data */
+
+/*
+ * Storage data: "iot_device_<id>:<json_data>\0"
+ * +12 for "iot_device_" prefix
+ * +1 for null terminator
+ */
+#define STORE_MAX_SIZE (DEVICE_ID_MAX_SIZE + 12 + JSON_MAX_SIZE + 1)
+
 #define HASH_SIZE (32 * 2) /* SHA256 hash size in hexadecimal string format (64 characters + null terminator) */
 #define RSA_KEY_SIZE_BITS 2048
 #define RSA_MODULUS_SIZE (RSA_KEY_SIZE_BITS / 8)
@@ -290,15 +299,31 @@ int main(int argc, char *argv[])
     /* Command handling */
     if (0 == strcmp(argv[1], "store") && 4 == argc)
     {
-        strncpy(json_data, argv[3], JSON_MAX_SIZE);
-        res = store_json_data(&ctx, argv[2], json_data, strlen(json_data), hash_output, HASH_SIZE * 2);
+        char store_data[STORE_MAX_SIZE] = {0};
+
+        if (strlen(argv[2]) >= DEVICE_ID_MAX_SIZE || strlen(argv[3]) > JSON_MAX_SIZE)
+        {
+            fprintf(stderr, "Error: IoT device ID or JSON data exceeds maximum size:\n");
+            fprintf(stderr, "  IoT device ID max size: %d, got: %zu\n", DEVICE_ID_MAX_SIZE, strlen(argv[2]));
+            fprintf(stderr, "  JSON data max size: %d, got: %zu\n", JSON_MAX_SIZE, strlen(argv[3]));
+            return 1;
+        }
+
+        int written = snprintf(store_data, STORE_MAX_SIZE, "iot_device_%s:%s", argv[2], argv[3]);
+        if (written < 0 || written >= STORE_MAX_SIZE)
+        {
+            fprintf(stderr, "Error: Combined data exceeds maximum size.\n");
+            return 1;
+        }
+
+        res = store_json_data(&ctx, argv[2], store_data, strlen(store_data), hash_output, HASH_SIZE * 2);
         if (res == TEEC_SUCCESS)
         {
             printf("SHA256 hash of the JSON data: %s\n", hash_output);
         }
         else
         {
-            printf("Failed to store JSON data for IoT device ID: %s\n", argv[2]);
+            fprintf(stderr, "Failed to store JSON data for IoT device ID: %s\n", argv[2]);
         }
     }
     else if (0 == strcmp(argv[1], "retrieve"))
@@ -307,12 +332,12 @@ int main(int argc, char *argv[])
         res = retrieve_json_data(&ctx, hash_output, HASH_SIZE, json_data, JSON_MAX_SIZE);
         if (res == TEEC_ERROR_SHORT_BUFFER)
         {
-            printf("The provided buffer is too short, expected size: %u\n", JSON_MAX_SIZE);
+            fprintf(stderr, "The provided buffer is too short, expected size: %u\n", JSON_MAX_SIZE);
             return 1;
         }
         else if (res == TEEC_ERROR_ITEM_NOT_FOUND)
         {
-            printf("No JSON data found for the provided hash.\n");
+            fprintf(stderr, "No JSON data found for the provided hash.\n");
             return 1;
         }
         else if (res == TEEC_SUCCESS)
@@ -330,7 +355,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            printf("Failed to hash JSON data\n");
+            fprintf(stderr, "Failed to hash JSON data\n");
         }
     }
     else if (0 == strcmp(argv[1], "attest"))
@@ -347,7 +372,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            printf("Failed to get attestation data\n");
+            fprintf(stderr, "Failed to get attestation data\n");
         }
     }
     else if (0 == strcmp(argv[1], "public-key"))
@@ -364,12 +389,12 @@ int main(int argc, char *argv[])
         }
         else
         {
-            printf("Failed to get public key\n");
+            fprintf(stderr, "Failed to get public key\n");
         }
     }
     else
     {
-        printf("Unknown command: %s\n", argv[1]);
+        fprintf(stderr, "Unknown command: %s\n", argv[1]);
         return 1;
     }
 
