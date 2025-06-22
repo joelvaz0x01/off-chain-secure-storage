@@ -44,6 +44,7 @@ optee-offchain-storage/
 │   ├── include/
 │   │   ├── crypto_operations.h       # Functions and macros for cryptography
 │   │   └── secure_storage_ta.h       # TA header file
+│   │
 │   ├── crypto_operations.c           # Main TA implementation
 │   ├── secure_storage_ta.c           # Main TA implementation
 │   ├── Makefile
