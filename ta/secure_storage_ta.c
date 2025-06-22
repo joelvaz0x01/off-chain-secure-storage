@@ -248,7 +248,6 @@ static TEE_Result retrieve_json_data(uint32_t param_types, TEE_Param params[4])
     if (res == TEE_ERROR_ITEM_NOT_FOUND)
     {
         EMSG("Persistent object not found for hash: %s", hash_input);
-        res = TEE_ERROR_ITEM_NOT_FOUND;
         goto exit;
     }
     else if (res != TEE_SUCCESS)
