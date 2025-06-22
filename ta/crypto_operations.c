@@ -2,20 +2,6 @@
 #include <secure_storage_ta.h>
 #include <string.h>
 
-#define RSA_KEYPAIR_STORAGE_NAME "rsaKeyPair"
-#define RSA_PUBLIC_KEY_STORAGE_NAME "rsaPublicKey"
-#define RSA_KEY_SIZE_BITS 2048
-#define RSA_MODULUS_SIZE (RSA_KEY_SIZE_BITS / 8)
-#define RSA_EXPONENT_SIZE 4
-#define RSA_PUBLIC_KEY_SIZE (RSA_MODULUS_SIZE + RSA_EXPONENT_SIZE)
-#define RSA_SIGNATURE_SIZE (RSA_KEY_SIZE_BITS / 8)
-
-#define AES_KEY_STORAGE_NAME "aesKey"
-#define AES_BLOCK_SIZE 16
-#define AES_KEY_SIZE 256
-
-#define SHA256_HASH_SIZE 32
-
 /**
  * Compute SHA256 hash of the data
  * @param data Pointer to the data to be hashed
@@ -47,7 +33,7 @@ TEE_Result compute_sha256(char *data, size_t data_sz, char *hash_output, size_t 
     TEE_DigestUpdate(op, data, data_sz);
 
     /* Finalize the digest and get the output */
-    res = TEE_DigestDoFinal(op, NULL, 0, hash_output, hash_output_sz);
+    res = TEE_DigestDoFinal(op, NULL, 0, hash_output, (uint32_t *)hash_output_sz);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to finalize digest, res=0x%08x", res);
@@ -130,8 +116,8 @@ TEE_Result generate_rsa_key_pair(TEE_ObjectHandle *key_pair_handle)
     /* Extract public key components */
     uint8_t modulus[256];
     uint8_t exponent[8];
-    size_t mod_len = sizeof(modulus);
-    size_t exp_len = sizeof(exponent);
+    uint32_t mod_len = sizeof(modulus);
+    uint32_t exp_len = sizeof(exponent);
 
     res = TEE_GetObjectBufferAttribute(transient_key, TEE_ATTR_RSA_MODULUS, modulus, &mod_len);
     if (res != TEE_SUCCESS)
@@ -284,18 +270,17 @@ TEE_Result get_code_attestation(void *signature, size_t *sig_len)
 {
     TEE_Result res;
     TEE_ObjectHandle key_handle = TEE_HANDLE_NULL;
-    TEE_OperationHandle hash_op = TEE_HANDLE_NULL;
     TEE_OperationHandle sign_op = TEE_HANDLE_NULL;
     TEE_UUID uuid = TA_OFF_CHAIN_SECURE_STORAGE_UUID;
     uint32_t flags = TEE_DATA_FLAG_ACCESS_READ;
 
-    uint8_t hash[SHA256_HASH_SIZE];
+    char hash[SHA256_HASH_SIZE];
     size_t hash_len = sizeof(hash);
 
     /* Check if the signature buffer is large enough */
     if (*sig_len < RSA_SIGNATURE_SIZE)
     {
-        EMSG("Signature buffer too small, expected size: %zu bytes", RSA_SIGNATURE_SIZE);
+        EMSG("Signature buffer too small, expected size: %u bytes", RSA_SIGNATURE_SIZE);
         return TEE_ERROR_SHORT_BUFFER;
     }
 
@@ -323,7 +308,7 @@ TEE_Result get_code_attestation(void *signature, size_t *sig_len)
 
     /* Prepare operation handle for signing:
      *  - TEE_ALG_RSASSA_PKCS1_V1_5_SHA256 - RSA PKCS#1 v1.5 with SHA-256
-     *  - TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256 - RSA PSS with MGF1 and SHA-256 (as random salt)
+     *  - TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256 - RSA PSS with MGF1 and SHA-256 (has random salt)
      */
     res = TEE_AllocateOperation(
         &sign_op,                             /* operation */
@@ -352,7 +337,7 @@ TEE_Result get_code_attestation(void *signature, size_t *sig_len)
     res = TEE_AsymmetricSignDigest(
         sign_op,            /* operation */
         NULL, 0,            /* params, paramsCount */
-        (void *)hash,       /* digest */
+        hash,               /* digest */
         hash_len,           /* digestLen */
         signature,          /* signature */
         (uint32_t *)sig_len /* signatureLen */
@@ -382,8 +367,8 @@ TEE_Result get_rsa_public_key(char *public_key, size_t *public_key_len)
     uint32_t flags = TEE_DATA_FLAG_ACCESS_READ;
     char modulus[RSA_MODULUS_SIZE];
     char exponent[RSA_EXPONENT_SIZE];
-    size_t mod_len = sizeof(modulus);
-    size_t exp_len = sizeof(exponent);
+    uint32_t mod_len = sizeof(modulus);
+    uint32_t exp_len = sizeof(exponent);
 
     /* Check if the public key buffer is large enough */
     if (*public_key_len < RSA_PUBLIC_KEY_SIZE)
@@ -475,12 +460,12 @@ TEE_Result encrypt_aes_data(const char *plaintext, size_t plaintext_len, char *c
     }
 
     /* Generate a new random IV for each encryption */
-    TEE_GenerateRandom((void *)iv, AES_BLOCK_SIZE);
+    TEE_GenerateRandom(iv, AES_BLOCK_SIZE);
 
     /* Copy IV to start of ciphertext */
     memcpy(ciphertext, iv, AES_BLOCK_SIZE);
 
-    TEE_CipherInit(operation, (void *)iv, AES_BLOCK_SIZE);
+    TEE_CipherInit(operation, iv, AES_BLOCK_SIZE);
 
     /* Encrypt plaintext after the IV in ciphertext buffer */
     uint32_t enc_len = *ciphertext_len - AES_BLOCK_SIZE;
@@ -593,7 +578,3 @@ exit:
 
     return res;
 }
-
-/* TODO
- * (optional) Limit JSON file access via an ACL like functionality
- */

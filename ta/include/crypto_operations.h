@@ -5,6 +5,20 @@
 #include <tee_internal_api.h>
 #include <tee_internal_api_extensions.h>
 
+#define RSA_KEYPAIR_STORAGE_NAME "rsaKeyPair"
+#define RSA_PUBLIC_KEY_STORAGE_NAME "rsaPublicKey"
+#define RSA_KEY_SIZE_BITS 2048
+#define RSA_MODULUS_SIZE (RSA_KEY_SIZE_BITS / 8)
+#define RSA_EXPONENT_SIZE 4
+#define RSA_PUBLIC_KEY_SIZE (RSA_MODULUS_SIZE + RSA_EXPONENT_SIZE)
+#define RSA_SIGNATURE_SIZE (RSA_KEY_SIZE_BITS / 8)
+
+#define AES_KEY_STORAGE_NAME "aesKey"
+#define AES_BLOCK_SIZE 16
+#define AES_KEY_SIZE 256
+
+#define SHA256_HASH_SIZE 32
+
 TEE_Result compute_sha256(char *json_data, size_t json_data_sz, char *hash_output, size_t *hash_output_sz);
 TEE_Result generate_rsa_key_pair(TEE_ObjectHandle *key_pair_handle);
 TEE_Result generate_aes_key(TEE_ObjectHandle *key_handle);

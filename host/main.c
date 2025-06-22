@@ -35,9 +35,8 @@
 /* TA API: UUID and command IDs */
 #include <secure_storage_ta.h>
 
-#define JSON_MAX_SIZE 7000       /* Maximum size of JSON data */
-#define JSON_HASH_SIZE 32        /* Size of SHA256 hash (256 bits) */
-
+#define JSON_MAX_SIZE 7000 /* Maximum size of JSON data */
+#define HASH_SIZE (32 * 2) /* SHA256 hash size in hexadecimal string format (64 characters + null terminator) */
 #define RSA_KEY_SIZE_BITS 2048
 #define RSA_MODULUS_SIZE (RSA_KEY_SIZE_BITS / 8)
 #define RSA_EXPONENT_SIZE 4
@@ -76,6 +75,49 @@ void terminate_tee_session(struct test_ctx *ctx)
 }
 
 /**
+ * Store JSON data from secure storage
+ * @param ctx Pointer to the test context
+ * @param iot_device_id ID of the IoT device
+ * @param json_data Buffer to store the retrieved JSON data
+ * @param json_data_len Length of the JSON data buffer
+ * @param json_hash Buffer to store the SHA256 hash of the JSON data
+ * @param json_hash_len Length of the JSON hash buffer
+ */
+TEEC_Result store_json_data(struct test_ctx *ctx, char *iot_device_id, char *json_data, size_t json_data_len, char *json_hash, size_t json_hash_len)
+{
+    TEEC_Operation op;
+    uint32_t origin;
+    TEEC_Result res;
+    size_t iot_device_id_len = strlen(iot_device_id);
+
+    memset(&op, 0, sizeof(op));
+    op.paramTypes = TEEC_PARAM_TYPES(
+        TEEC_MEMREF_TEMP_INPUT,  /* param[0] (memref) */
+        TEEC_MEMREF_TEMP_INPUT,  /* param[1] (memref) */
+        TEEC_MEMREF_TEMP_OUTPUT, /* param[2] (memref) */
+        TEEC_NONE                /* param[3] unused */
+    );
+
+    /* param[0] (memref) IoT Device ID used the identify the persistent object */
+    op.params[0].tmpref.buffer = iot_device_id;
+    op.params[0].tmpref.size = iot_device_id_len;
+
+    /* param[1] (memref) JSON data to be written in the persistent object */
+    op.params[1].tmpref.buffer = json_data;
+    op.params[1].tmpref.size = json_data_len;
+
+    /* param[2] (memref) Buffer to store the SHA256 hash of the JSON data */
+    op.params[2].tmpref.buffer = json_hash;
+    op.params[2].tmpref.size = json_hash_len;
+
+    res = TEEC_InvokeCommand(&ctx->sess, TA_OFF_CHAIN_SECURE_STORAGE_STORE_JSON, &op, &origin);
+    if (res != TEEC_SUCCESS)
+        printf("Command STORE_JSON failed: 0x%x / %u\n", res, origin);
+
+    return res;
+}
+
+/**
  * Retrieve JSON data in secure storage
  * @param ctx Pointer to the test context
  * @param json_hash SHA256 hash of the JSON data
@@ -107,62 +149,16 @@ TEEC_Result retrieve_json_data(struct test_ctx *ctx, char *json_hash, size_t jso
 
     res = TEEC_InvokeCommand(&ctx->sess, TA_OFF_CHAIN_SECURE_STORAGE_RETRIEVE_JSON, &op, &origin);
 
-    /* If the buffer is too short, return the expected size */
-    if (res == TEEC_ERROR_SHORT_BUFFER)
+    /* Check for specific error codes */
+    if (res == TEEC_ERROR_SHORT_BUFFER || res == TEEC_ERROR_ITEM_NOT_FOUND)
     {
-        printf("The provided buffer is too short, expected size: %zu\n", op.params[1].tmpref.size);
         return res;
     }
-
-    if (res != TEEC_SUCCESS)
+    else if (res != TEEC_SUCCESS)
         printf("Command RETRIEVE_JSON failed: 0x%x / %u\n", res, origin);
 
     json_data = op.params[1].tmpref.buffer;
     json_data_len = op.params[1].tmpref.size;
-
-    return res;
-}
-
-/**
- * Store JSON data from secure storage
- * @param ctx Pointer to the test context
- * @param iot_device_id ID of the IoT device
- * @param json_data Buffer to store the retrieved JSON data
- * @param json_data_len Length of the JSON data buffer
- * @param json_hash Buffer to store the SHA256 hash of the JSON data
- * @param json_hash_len Length of the JSON hash buffer
- */
-TEEC_Result store_json_data(struct test_ctx *ctx, char *iot_device_id, char *json_data, size_t json_data_len, char *json_hash, size_t json_hash_len)
-{
-    TEEC_Operation op;
-    uint32_t origin;
-    TEEC_Result res;
-    size_t iot_device_id_len = strlen(iot_device_id);
-
-    memset(&op, 0, sizeof(op));
-    op.paramTypes = TEEC_PARAM_TYPES(
-        TEEC_MEMREF_TEMP_INPUT,  /* param[0] (memref) */
-        TEEC_MEMREF_TEMP_INPUT,  /* param[1] (memref) */
-        TEEC_MEMREF_TEMP_OUTPUT, /* param[2] (memref) */
-        TEEC_NONE               /* param[3] unused */
-    );
-
-    /* param[0] (memref) IoT Device ID used the identify the persistent object */
-    op.params[0].tmpref.buffer = iot_device_id;
-    op.params[0].tmpref.size = iot_device_id_len;
-
-    /* param[1] (memref) JSON data to be written in the persistent object */
-    op.params[1].tmpref.buffer = json_data;
-    op.params[1].tmpref.size = json_data_len;
-
-    /* param[2] (memref) Buffer to store the SHA256 hash of the JSON data */
-    op.params[2].tmpref.buffer = json_hash;
-    op.params[2].tmpref.size = json_hash_len;
-
-    res = TEEC_InvokeCommand(&ctx->sess, TA_OFF_CHAIN_SECURE_STORAGE_STORE_JSON, &op, &origin);
-
-    if (res != TEEC_SUCCESS)
-        printf("Command STORE_JSON failed: 0x%x / %u\n", res, origin);
 
     return res;
 }
@@ -198,7 +194,6 @@ TEEC_Result hash_json_data(struct test_ctx *ctx, char *json_data, size_t json_da
     op.params[1].tmpref.size = hash_output_len;
 
     res = TEEC_InvokeCommand(&ctx->sess, TA_OFF_CHAIN_SECURE_STORAGE_HASH_JSON, &op, &origin);
-
     if (res != TEEC_SUCCESS)
         printf("Command HASH_JSON failed: 0x%x / %u\n", res, origin);
 
@@ -230,7 +225,6 @@ TEEC_Result get_attestation_data(struct test_ctx *ctx, char *attestation_data, s
     op.params[0].tmpref.size = attestation_data_len;
 
     res = TEEC_InvokeCommand(&ctx->sess, TA_OFF_CHAIN_SECURE_STORAGE_GET_ATTESTATION, &op, &origin);
-
     if (res != TEEC_SUCCESS)
         printf("Command GET_ATTESTATION failed: 0x%x / %u\n", res, origin);
 
@@ -262,7 +256,6 @@ TEEC_Result get_public_key(struct test_ctx *ctx, char *public_key, size_t public
     op.params[0].tmpref.size = public_key_len;
 
     res = TEEC_InvokeCommand(&ctx->sess, TA_OFF_CHAIN_SECURE_STORAGE_GET_PUBLIC_KEY, &op, &origin);
-
     if (res != TEEC_SUCCESS)
         printf("Command GET_PUBLIC_KEY failed: 0x%x / %u\n", res, origin);
 
@@ -272,8 +265,8 @@ TEEC_Result get_public_key(struct test_ctx *ctx, char *public_key, size_t public
 int main(int argc, char *argv[])
 {
     struct test_ctx ctx;
-    char json_data[JSON_MAX_SIZE];
-    char hash_output[JSON_HASH_SIZE];
+    char json_data[JSON_MAX_SIZE + 1];
+    char hash_output[HASH_SIZE];
     char attestation_data[ATTESTATION_DATA_SIZE];
     char public_key[PUBLIC_KEY_SIZE];
     TEEC_Result res;
@@ -291,22 +284,17 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    printf("Prepare session with the TA\n");
+    printf("Prepare session with the TA\n\n");
     prepare_tee_session(&ctx);
 
     /* Command handling */
     if (0 == strcmp(argv[1], "store") && 4 == argc)
     {
         strncpy(json_data, argv[3], JSON_MAX_SIZE);
-        res = store_json_data(&ctx, argv[2], json_data, JSON_MAX_SIZE, hash_output, JSON_HASH_SIZE);
+        res = store_json_data(&ctx, argv[2], json_data, JSON_MAX_SIZE, hash_output, HASH_SIZE);
         if (res == TEEC_SUCCESS)
         {
-            printf("SHA256 hash of the JSON data: ");
-            for (size_t i = 0; i < JSON_HASH_SIZE; i++)
-            {
-                printf("%02x", (unsigned char)hash_output[i]);
-            }
-            printf("\n");
+            printf("SHA256 hash of the JSON data: %s\n", hash_output);
         }
         else
         {
@@ -315,29 +303,30 @@ int main(int argc, char *argv[])
     }
     else if (0 == strcmp(argv[1], "retrieve"))
     {
-        strncpy(hash_output, argv[2], JSON_HASH_SIZE);
-        res = retrieve_json_data(&ctx, hash_output, JSON_HASH_SIZE, json_data, JSON_MAX_SIZE);
-        if (res == TEEC_SUCCESS)
+        memcpy(hash_output, argv[2], HASH_SIZE);
+        res = retrieve_json_data(&ctx, hash_output, HASH_SIZE, json_data, JSON_MAX_SIZE);
+        if (res == TEEC_ERROR_SHORT_BUFFER)
+        {
+            printf("The provided buffer is too short, expected size: %u\n", JSON_MAX_SIZE);
+            return 1;
+        }
+        else if (res == TEEC_ERROR_ITEM_NOT_FOUND)
+        {
+            printf("No JSON data found for the provided hash.\n");
+            return 1;
+        }
+        else if (res == TEEC_SUCCESS)
         {
             printf("Retrieved JSON data: %s\n", json_data);
-        }
-        else
-        {
-            printf("Failed to retrieve JSON data for hash: %s\n", hash_output);
         }
     }
     else if (0 == strcmp(argv[1], "hash"))
     {
         strncpy(json_data, argv[2], JSON_MAX_SIZE);
-        res = hash_json_data(&ctx, json_data, JSON_MAX_SIZE, hash_output, JSON_HASH_SIZE);
+        res = hash_json_data(&ctx, json_data, JSON_MAX_SIZE, hash_output, HASH_SIZE);
         if (res == TEEC_SUCCESS)
         {
-            printf("SHA256 hash of the JSON data: ");
-            for (size_t i = 0; i < JSON_HASH_SIZE; i++)
-            {
-                printf("%02x", (unsigned char)hash_output[i]);
-            }
-            printf("\n");
+            printf("SHA256 hash of the JSON data: %s\n", hash_output);
         }
         else
         {
