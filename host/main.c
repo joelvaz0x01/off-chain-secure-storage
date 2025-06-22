@@ -121,7 +121,7 @@ TEEC_Result store_json_data(struct test_ctx *ctx, char *iot_device_id, char *jso
 
     res = TEEC_InvokeCommand(&ctx->sess, TA_OFF_CHAIN_SECURE_STORAGE_STORE_JSON, &op, &origin);
     if (res != TEEC_SUCCESS)
-        printf("Command STORE_JSON failed: 0x%x / %u\n", res, origin);
+        fprintf(stderr, "Command STORE_JSON failed: 0x%x / %u\n", res, origin);
 
     return res;
 }
@@ -164,7 +164,7 @@ TEEC_Result retrieve_json_data(struct test_ctx *ctx, char *json_hash, size_t jso
         return res;
     }
     else if (res != TEEC_SUCCESS)
-        printf("Command RETRIEVE_JSON failed: 0x%x / %u\n", res, origin);
+        fprintf(stderr, "Command RETRIEVE_JSON failed: 0x%x / %u\n", res, origin);
 
     json_data = op.params[1].tmpref.buffer;
     json_data_len = op.params[1].tmpref.size;
@@ -204,7 +204,7 @@ TEEC_Result hash_json_data(struct test_ctx *ctx, char *json_data, size_t json_da
 
     res = TEEC_InvokeCommand(&ctx->sess, TA_OFF_CHAIN_SECURE_STORAGE_HASH_JSON, &op, &origin);
     if (res != TEEC_SUCCESS)
-        printf("Command HASH_JSON failed: 0x%x / %u\n", res, origin);
+        fprintf(stderr, "Command HASH_JSON failed: 0x%x / %u\n", res, origin);
 
     return res;
 }
@@ -235,7 +235,7 @@ TEEC_Result get_attestation_data(struct test_ctx *ctx, char *attestation_data, s
 
     res = TEEC_InvokeCommand(&ctx->sess, TA_OFF_CHAIN_SECURE_STORAGE_GET_ATTESTATION, &op, &origin);
     if (res != TEEC_SUCCESS)
-        printf("Command GET_ATTESTATION failed: 0x%x / %u\n", res, origin);
+        fprintf(stderr, "Command GET_ATTESTATION failed: 0x%x / %u\n", res, origin);
 
     return res;
 }
@@ -266,7 +266,7 @@ TEEC_Result get_public_key(struct test_ctx *ctx, char *public_key, size_t public
 
     res = TEEC_InvokeCommand(&ctx->sess, TA_OFF_CHAIN_SECURE_STORAGE_GET_PUBLIC_KEY, &op, &origin);
     if (res != TEEC_SUCCESS)
-        printf("Command GET_PUBLIC_KEY failed: 0x%x / %u\n", res, origin);
+        fprintf(stderr, "Command GET_PUBLIC_KEY failed: 0x%x / %u\n", res, origin);
 
     return res;
 }
@@ -321,9 +321,14 @@ int main(int argc, char *argv[])
         {
             printf("SHA256 hash of the JSON data: %s\n", hash_output);
         }
+        else if (res == TEEC_ERROR_ACCESS_CONFLICT)
+        {
+            fprintf(stderr, "Error: The persistent object already exists.\n");
+            return res;
+        }
         else
         {
-            fprintf(stderr, "Failed to store JSON data for IoT device ID: %s\n", argv[2]);
+            fprintf(stderr, "Error: Failed to store JSON data for IoT device ID: %s\n", argv[2]);
         }
     }
     else if (0 == strcmp(argv[1], "retrieve"))
@@ -332,12 +337,12 @@ int main(int argc, char *argv[])
         res = retrieve_json_data(&ctx, hash_output, HASH_SIZE, json_data, JSON_MAX_SIZE);
         if (res == TEEC_ERROR_SHORT_BUFFER)
         {
-            fprintf(stderr, "The provided buffer is too short, expected size: %u\n", JSON_MAX_SIZE);
+            fprintf(stderr, "Error: The provided buffer is too short, expected size: %u\n", JSON_MAX_SIZE);
             return 1;
         }
         else if (res == TEEC_ERROR_ITEM_NOT_FOUND)
         {
-            fprintf(stderr, "No JSON data found for the provided hash.\n");
+            fprintf(stderr, "Error: No JSON data found for the provided hash.\n");
             return 1;
         }
         else if (res == TEEC_SUCCESS)
@@ -355,7 +360,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            fprintf(stderr, "Failed to hash JSON data\n");
+            fprintf(stderr, "Error: Failed to hash JSON data\n");
         }
     }
     else if (0 == strcmp(argv[1], "attest"))
@@ -372,7 +377,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            fprintf(stderr, "Failed to get attestation data\n");
+            fprintf(stderr, "Error: Failed to get attestation data\n");
         }
     }
     else if (0 == strcmp(argv[1], "public-key"))
@@ -389,7 +394,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            fprintf(stderr, "Failed to get public key\n");
+            fprintf(stderr, "Error: Failed to get public key\n");
         }
     }
     else
