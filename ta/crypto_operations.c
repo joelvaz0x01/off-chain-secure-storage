@@ -203,13 +203,11 @@ TEE_Result generate_aes_key(TEE_ObjectHandle *key_handle)
         flags,                        /* flags */
         key_handle                    /* object */
     );
-
     if (res == TEE_SUCCESS)
     {
         DMSG("AES key retrieved from persistent storage");
         return TEE_SUCCESS;
     }
-
     if (res != TEE_ERROR_ITEM_NOT_FOUND)
     {
         EMSG("Failed to open AES key object: 0x%08x", res);
@@ -428,19 +426,16 @@ TEE_Result get_rsa_public_key(char *public_key, size_t *public_key_len)
 TEE_Result encrypt_aes_data(const char *plaintext, size_t plaintext_len, char *ciphertext, size_t *ciphertext_len)
 {
     TEE_Result res;
-    char iv[AES_BLOCK_SIZE];
     TEE_ObjectHandle key_handle = TEE_HANDLE_NULL;
     TEE_OperationHandle operation = TEE_HANDLE_NULL;
-    uint32_t read_bytes = 0;
-
-    /* Ensure output buffer can hold IV + ciphertext */
-    *ciphertext_len = plaintext_len + AES_BLOCK_SIZE;
+    char iv[AES_BLOCK_SIZE] = {0};
+    uint32_t enc_len = 0;
 
     /* Retrieve the AES key from persistent storage or generate a new one */
     res = generate_aes_key(&key_handle);
     if (res != TEE_SUCCESS)
     {
-        EMSG("Failed to generate AES key, res=0x%08x", res);
+        EMSG("Failed to retrieve AES key, res=0x%08x", res);
         goto exit;
     }
 
@@ -459,16 +454,14 @@ TEE_Result encrypt_aes_data(const char *plaintext, size_t plaintext_len, char *c
         goto exit;
     }
 
-    /* Generate a new random IV for each encryption */
+    /* Generate a new random IV */
     TEE_GenerateRandom(iv, AES_BLOCK_SIZE);
-
-    /* Copy IV to start of ciphertext */
     memcpy(ciphertext, iv, AES_BLOCK_SIZE);
 
     TEE_CipherInit(operation, iv, AES_BLOCK_SIZE);
 
     /* Encrypt plaintext after the IV in ciphertext buffer */
-    uint32_t enc_len = *ciphertext_len - AES_BLOCK_SIZE;
+    enc_len = (uint32_t)(*ciphertext_len - AES_BLOCK_SIZE);
     res = TEE_CipherUpdate(operation, plaintext, plaintext_len, ciphertext + AES_BLOCK_SIZE, &enc_len);
     if (res != TEE_SUCCESS)
     {
@@ -476,20 +469,14 @@ TEE_Result encrypt_aes_data(const char *plaintext, size_t plaintext_len, char *c
         goto exit;
     }
 
-    res = TEE_CipherDoFinal(operation, NULL, 0, ciphertext + AES_BLOCK_SIZE + enc_len, &read_bytes);
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("Failed to finalize encryption, res=0x%08x", res);
-        goto exit;
-    }
-
-    *ciphertext_len = AES_BLOCK_SIZE + enc_len + read_bytes;
+    *ciphertext_len = AES_BLOCK_SIZE + enc_len;
 
 exit:
     if (operation != TEE_HANDLE_NULL)
         TEE_FreeOperation(operation);
     if (key_handle != TEE_HANDLE_NULL)
         TEE_CloseObject(key_handle);
+    TEE_MemFill(iv, 0, sizeof(iv));
 
     return res;
 }
@@ -506,7 +493,8 @@ TEE_Result decrypt_aes_data(const char *ciphertext, size_t ciphertext_len, char 
     TEE_Result res;
     TEE_ObjectHandle key_handle = TEE_HANDLE_NULL;
     TEE_OperationHandle operation = TEE_HANDLE_NULL;
-    uint32_t read_bytes = 0;
+    char iv[AES_BLOCK_SIZE] = {0};
+    uint32_t dec_len = 0;
 
     /* Check if the output buffer is large enough */
     if (ciphertext_len < AES_BLOCK_SIZE)
@@ -515,23 +503,14 @@ TEE_Result decrypt_aes_data(const char *ciphertext, size_t ciphertext_len, char 
         return TEE_ERROR_SHORT_BUFFER;
     }
 
-    /* Check if output buffer is large enough */
-    if (*plaintext_len < ciphertext_len - AES_BLOCK_SIZE)
-    {
-        EMSG("Output buffer is too small, expected size: %zu bytes", ciphertext_len - AES_BLOCK_SIZE);
-        return TEE_ERROR_SHORT_BUFFER;
-    }
-
     /* Extract IV from the start of ciphertext */
-    const char *iv = ciphertext;
-    const char *enc_data = ciphertext + AES_BLOCK_SIZE;
-    size_t enc_data_len = ciphertext_len - AES_BLOCK_SIZE;
+    memcpy(iv, ciphertext, AES_BLOCK_SIZE);
 
     /* Retrieve the AES key from persistent storage */
     res = generate_aes_key(&key_handle);
     if (res != TEE_SUCCESS)
     {
-        EMSG("Failed to generate AES key, res=0x%08x", res);
+        EMSG("Failed to retrieve AES key, res=0x%08x", res);
         goto exit;
     }
 
@@ -553,28 +532,25 @@ TEE_Result decrypt_aes_data(const char *ciphertext, size_t ciphertext_len, char 
     /* Initialize cipher with IV */
     TEE_CipherInit(operation, iv, AES_BLOCK_SIZE);
 
-    uint32_t out_len = (uint32_t)*plaintext_len;
-    res = TEE_CipherUpdate(operation, enc_data, enc_data_len, plaintext, &out_len);
+    /* Decrypt ciphertext (excluding the IV) */
+    dec_len = (uint32_t)(*plaintext_len);
+    size_t input_len = ciphertext_len - AES_BLOCK_SIZE;
+
+    res = TEE_CipherUpdate(operation, ciphertext + AES_BLOCK_SIZE, input_len, plaintext, &dec_len);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to decrypt data, res=0x%08x", res);
         goto exit;
     }
 
-    res = TEE_CipherDoFinal(operation, NULL, 0, plaintext + out_len, &read_bytes);
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("Failed to finalize decryption, res=0x%08x", res);
-        goto exit;
-    }
-
-    *plaintext_len = out_len + read_bytes;
+    *plaintext_len = dec_len;
 
 exit:
     if (operation != TEE_HANDLE_NULL)
         TEE_FreeOperation(operation);
     if (key_handle != TEE_HANDLE_NULL)
         TEE_CloseObject(key_handle);
+    TEE_MemFill(iv, 0, sizeof(iv));
 
     return res;
 }

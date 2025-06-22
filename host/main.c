@@ -265,7 +265,7 @@ TEEC_Result get_public_key(struct test_ctx *ctx, char *public_key, size_t public
 int main(int argc, char *argv[])
 {
     struct test_ctx ctx;
-    char json_data[JSON_MAX_SIZE + 1];
+    char json_data[JSON_MAX_SIZE + 1] = {0};
     char hash_output[HASH_SIZE];
     char attestation_data[ATTESTATION_DATA_SIZE];
     char public_key[PUBLIC_KEY_SIZE];
@@ -291,7 +291,7 @@ int main(int argc, char *argv[])
     if (0 == strcmp(argv[1], "store") && 4 == argc)
     {
         strncpy(json_data, argv[3], JSON_MAX_SIZE);
-        res = store_json_data(&ctx, argv[2], json_data, JSON_MAX_SIZE, hash_output, HASH_SIZE);
+        res = store_json_data(&ctx, argv[2], json_data, strlen(json_data), hash_output, HASH_SIZE * 2);
         if (res == TEEC_SUCCESS)
         {
             printf("SHA256 hash of the JSON data: %s\n", hash_output);
@@ -323,7 +323,7 @@ int main(int argc, char *argv[])
     else if (0 == strcmp(argv[1], "hash"))
     {
         strncpy(json_data, argv[2], JSON_MAX_SIZE);
-        res = hash_json_data(&ctx, json_data, JSON_MAX_SIZE, hash_output, HASH_SIZE);
+        res = hash_json_data(&ctx, json_data, strlen(json_data), hash_output, HASH_SIZE);
         if (res == TEEC_SUCCESS)
         {
             printf("SHA256 hash of the JSON data: %s\n", hash_output);

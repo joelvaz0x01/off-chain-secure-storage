@@ -43,7 +43,7 @@ static TEE_Result hash_to_hex_str(char *output_hash_str, size_t output_hash_str_
     // Make sure output buffer size is enough: 2 chars per byte
     if (output_hash_str_sz != SHA256_HASH_SIZE * 2)
     {
-        EMSG("Output buffer size is incorrect, expected: %u, got: %zu", SHA256_HASH_SIZE * 2 + 1, output_hash_str_sz);
+        EMSG("Output buffer size is incorrect, expected: %u, got: %zu", SHA256_HASH_SIZE * 2, output_hash_str_sz);
         return TEE_ERROR_BAD_PARAMETERS;
     }
 
@@ -76,8 +76,12 @@ static TEE_Result store_json_data(uint32_t param_types, TEE_Param params[4])
     char *output_hash = NULL; /* param[2].buffer */
     size_t output_hash_sz;    /* param[2].size */
 
-    size_t aux_hash_sz = SHA256_HASH_SIZE;     /* Size of auxiliary hash buffer */
-    char aux_hash[aux_hash_sz];                /* Auxiliary buffer for SHA256 hash */
+    size_t aux_hash_sz = SHA256_HASH_SIZE * 2; /* Size for the hexadecimal string representation of the hash */
+    char aux_hash[SHA256_HASH_SIZE * 2];       /* Auxiliary buffer for the hash in hex format */
+
+    size_t final_data_sz = 0; /* Size of the final encrypted data */
+    char *final_data = NULL;  /* Final buffer for encrypted data */
+
     uint32_t flag = TEE_DATA_FLAG_ACCESS_READ; /* we can read the object */
 
     /* Safely get the invocation parameters */
@@ -113,8 +117,17 @@ static TEE_Result store_json_data(uint32_t param_types, TEE_Param params[4])
         goto exit;
     }
 
+    /* Allocate memory for the final encrypted data */
+    final_data_sz = data_sz + AES_BLOCK_SIZE;
+    final_data = TEE_Malloc(final_data_sz, 0);
+    if (!final_data)
+    {
+        res = TEE_ERROR_OUT_OF_MEMORY;
+        goto exit;
+    }
+
     /* Compute SHA256 hash of the data */
-    res = compute_sha256(data, data_sz, aux_hash, &aux_hash_sz);
+    res = compute_sha256(data, data_sz, output_hash, &output_hash_sz);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to compute SHA256 hash, res=0x%08x", res);
@@ -122,7 +135,7 @@ static TEE_Result store_json_data(uint32_t param_types, TEE_Param params[4])
     }
 
     /* Convert the hash to a hexadecimal string */
-    res = hash_to_hex_str(output_hash, output_hash_sz, aux_hash, aux_hash_sz);
+    res = hash_to_hex_str(aux_hash, aux_hash_sz, output_hash, output_hash_sz);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to convert hash to hex string, res=0x%08x", res);
@@ -130,8 +143,8 @@ static TEE_Result store_json_data(uint32_t param_types, TEE_Param params[4])
     }
 
     /* Check if the output buffer is large enough and copy the hash */
-    if (output_hash_sz <= params[2].memref.size)
-        TEE_MemMove(params[2].memref.buffer, output_hash, output_hash_sz);
+    if (aux_hash_sz <= params[2].memref.size)
+        TEE_MemMove(params[2].memref.buffer, aux_hash, aux_hash_sz);
     else
     {
         res = TEE_ERROR_SHORT_BUFFER;
@@ -139,7 +152,7 @@ static TEE_Result store_json_data(uint32_t param_types, TEE_Param params[4])
     }
 
     /* Encrypt data */
-    res = encrypt_aes_data(data, data_sz, data, &data_sz);
+    res = encrypt_aes_data(data, data_sz, final_data, &final_data_sz);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to encrypt data, res=0x%08x", res);
@@ -149,11 +162,12 @@ static TEE_Result store_json_data(uint32_t param_types, TEE_Param params[4])
     /* Create object in secure storage and fill with data */
     res = TEE_CreatePersistentObject(
         TEE_STORAGE_PRIVATE, /* storageID */
-        output_hash,         /* objectID */
-        output_hash_sz,      /* objectIDLen */
+        aux_hash,            /* objectID */
+        aux_hash_sz,         /* objectIDLen */
         flag,                /* flags */
         TEE_HANDLE_NULL,     /* attributes */
-        data, data_sz,       /* initialData, initialDataLen */
+        final_data,          /* initialData */
+        final_data_sz,       /* initialDataLen */
         &object              /* object */
     );
     if (res != TEE_SUCCESS)
