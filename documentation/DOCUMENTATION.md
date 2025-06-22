@@ -6,10 +6,8 @@ This document provides comprehensive technical documentation for the OP-TEE Off-
 
 - [API Documentation](#api-documentation)
 - [Security Architecture](#security-architecture)
-- [Development Workflow](#development-workflow)
 - [Cryptographic Specifications](#cryptographic-specifications)
 - [Error Handling](#error-handling)
-
 
 
 ## API Documentation
@@ -87,8 +85,8 @@ The TA exposes five main commands through the TEE Client API:
 
 **Attestation Process:**
 1. Compute SHA-256 hash of TA UUID
-2. Sign hash using RSA-2048 private key with PSS padding
-3. Return signature for external verification
+2. Sign hash using RSA-2048 private key with PSS padding (random salt)
+3. Return signature
 
 
 #### 5. Get Public Key (`TA_OFF_CHAIN_SECURE_STORAGE_GET_PUBLIC_KEY`)
@@ -103,7 +101,7 @@ The TA exposes five main commands through the TEE Client API:
 
 **Public Key Format:**
 ```c
-
+Public key: <HEXADECIMAL VALUE>
 ```
 
 ### Client Application (CA) Interface
@@ -126,7 +124,7 @@ The TA exposes five main commands through the TEE Client API:
 | `public-key` | None | Get public key | `public-key` |
 
 
-### Security Boundaries
+# Security Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -175,7 +173,7 @@ The TA exposes five main commands through the TEE Client API:
 - **Mode**: CTR (Counter mode) for parallelizable operations
 - **IV**: Random 16-byte initialization vector per encryption
 - **Storage**: TEE persistent storage
-- **Lifecycle**: Generated on first TA load, reused for all operations
+- **Lifecycle**: Generated on first TA load (`TA_CreateEntryPoint()`), reused for all store operations and hash
 
 
 ## Cryptographic Specifications
@@ -183,6 +181,12 @@ The TA exposes five main commands through the TEE Client API:
 ### Hash Functions
 
 ![Crypto Functions](images/crypto.png)
+
+
+### Available RSA Signature modes
+
+![Signing Modes](images/alg.png)
+
 
 ## Error Handling
 
@@ -192,5 +196,9 @@ The TA exposes five main commands through the TEE Client API:
 | `TEE_ERROR_OUT_OF_MEMORY` | 0xFFFF000C | Memory allocation failed | Retry with smaller buffer |
 | `TEE_ERROR_SHORT_BUFFER` | 0xFFFF0010 | Output buffer too small | Increase buffer size |
 | `TEE_ERROR_ITEM_NOT_FOUND` | 0xFFFF0008 | Object not found in storage | Check file hash |
-| `TEE_ERROR_CORRUPT_OBJECT` | 0xFFFF0008 | Stored object is corrupted | Report data corruption |
+| `TEE_ERROR_BAD_PARAMETERS`|0xFFFF0006|Function parameters are not correct|Check parameters|
+
+
+
+
 

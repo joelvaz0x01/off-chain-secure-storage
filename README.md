@@ -19,17 +19,6 @@ Trusted Application for secure off-chain data storage
 | ------------------------ | ------------------------------------ |
 | off_chain_secure_storage | e3ae8c32-5fc1-42e4-b476-b35fe3f8f07d |
 
-```
-Usage: ./off_chain_secure_storage <command>
-
-Commands:
-    retrieve <iot_device_id> - Retrieve JSON data for a given IoT device ID
-    store <iot_device_id> <json_data> - Store JSON data for a given IoT device ID
-    retrieve <json_hash> - Retrieve JSON data for a given hash
-    hash <json_data> - Get SHA256 hash of a given JSON data
-    attest - Get attestation data of the TA
-    public-key - Get public key of the TA
-```
 
 ## Project Description
 This project implements a secure off-chain data storage solution using OP-TEE (Open Portable Trusted Execution Environment) for IoT sensor data management. The system main purpose is storing sensitive data off-chain while maintaining blockchain-level integrity and auditability through cryptographic hashing.
@@ -49,22 +38,18 @@ optee-offchain-storage/
 ├── ta/                           # Trusted Application (Secure World)
 │   ├── secure_storage_ta.c       # Main TA implementation
 │   ├── include/
-│   │   ├── secure_storage_ta.h         # TA header file
-│   │   └── user_ta_header_defines.h    # TA configuration
-│   ├── sub.mk                          # TA build configuration
-│   └── Makefile                        # TA build rules
+│   │   ├── secure_storage_ta.h      # TA header file
+│   │   └── crypto_operations.h      # Functions and macros for cryptography
+|   ├── user_ta_header_defines.h     # TA configuration
+│   ├── sub.mk                       
+│   └── Makefile                     
 ├── iot-json/                     # Sample IoT data files
 │   ├── environmental-monitoring.json
 │   ├── healthcare-iot.json
 │   └── industrial-iot.json
-├── scripts/                      # Testing and utility scripts
-│   ├── build.sh                  # Automated build script
-│   ├── test.sh                   # Automated testing
-│   └── demo.sh                   # Demonstration script
-└── documentation/                # Additional documentation
-    ├── BUILDING.md               # Build instructions
-    ├── TESTING.md                # Testing procedures
-    └── images/                   # Screenshots and diagrams
+└── documentation/                
+    ├── DOCUMENTATION.md          # Documentation
+    └── images/                   # Images
 ```
 
 ## Architecture
@@ -146,7 +131,7 @@ The application provides the following commands:
 
 1. **Initialize OP-TEE Environment**
 ```bash
-mkdir optee_workspace && cd optee_workspace
+mkdir $OPTEE_DIR && cd $OPTEE_DIR
 repo init -u https://github.com/OP-TEE/manifest.git -m qemu_v8.xml
 repo sync
 ```
@@ -162,13 +147,13 @@ make -j$(nproc)
 
 1. **Clone Project Repository**
 ```bash
-git clone <repository_url>
+git clone https://github.com/detiuaveiro-assignement-2-proj2-86157_103009_124461.git
 ```
 
 2. **Integrate with OP-TEE Build System**
 ```bash
 # Copy repository to OP-TEE examples
-cp -r optee-offchain-storage $OPTEE_DIR/optee_examples/off_chain_secure_storage/
+cp -r optee-off-chain-storage $OPTEE_DIR/optee_examples/off_chain_secure_storage/
 
 # Build the project
 cd $OPTEE_DIR/build
@@ -187,23 +172,30 @@ make run-only
 1. Press `c` or type `cont` to start the OS
 2. Login as `root` in Normal World console
 3. Execute the application:
-```bash
-/usr/bin/off_chain_secure_storage --help
 ```
+/usr/bin/off_chain_secure_storage <command>
+
+Commands:
+    store <iot_device_id> <json_data> - Store JSON data for a given IoT device ID
+    retrieve <json_hash> - Retrieve JSON data for a given hash
+    hash <json_data> - Get SHA256 hash of a given JSON data
+    attest - Get attestation data of the TA
+    public-key - Get public key of the TA
+```
+
 
 
 ### Documentation Quick Reference
 
-- **🚀 New to the project?** Start with this README
-- **🔧 Setting up development environment?** See [BUILDING.md](documentation/BUILDING.md)
 - **💻 Need API details or security specs?** Check [DOCUMENTATION.md](documentation/DOCUMENTATION.md)
-- **🧪 Running tests or validation?** Reference [TESTING.md](documentation/TESTING.md)
 - **🔍 Looking for specific implementation details?** Use [DOCUMENTATION.md](documentation/DOCUMENTATION.md) sections:
   - [API Documentation](documentation/DOCUMENTATION.md#api-documentation)
   - [Security Architecture](documentation/DOCUMENTATION.md#security-architecture)
   - [Cryptographic Specifications](documentation/DOCUMENTATION.md#cryptographic-specifications)
-  - [Testing Guide](documentation/DOCUMENTATION.md#testing-guide)
-  - [Development Workflow](documentation/DOCUMENTATION.md#development-workflow)
 
+### References
 
+1. [OP-TEE Documentation](https://optee.readthedocs.io/) - Official OP-TEE development guide
+2. [TEE Internal Core API Specifications](https://globalplatform.org/specs-library/tee-internal-core-api-specification/) - Trusted aplication specifications
+3. [TEE Client API Specification](https://globalplatform.org/wp-content/uploads/2010/07/TEE_Client_API_Specification-V1.0.pdf) - Client application specifications
 
