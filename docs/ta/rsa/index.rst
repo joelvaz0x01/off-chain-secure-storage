@@ -1,9 +1,9 @@
 .. _rsa:
 
-RSA Key Management
-======================
+RSA Implementation
+==================
 
-This section provides an overview of RSA key management within the Trusted Execution Environment (TEE).
+This section provides an overview of RSA implementation within the Trusted Execution Environment (TEE).
 
 RSA is a public-key cryptosystem used for secure data exchange, digital signatures, and key encapsulation. Within the TEE, RSA keys are generated, securely stored, and can be exported in a controlled manner for verification or encryption outside the TEE.
 

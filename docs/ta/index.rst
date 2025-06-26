@@ -5,6 +5,7 @@ Trusted Application (TA)
    :maxdepth: 2
 
    api
-   sha256_hashing
+   hash
    rsa/index
    aes/index
+   attestation

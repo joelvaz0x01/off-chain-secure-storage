@@ -1,12 +1,9 @@
 .. _aes_encryption:
 
-AES Encryption using CTR Mode
+Encryption using CTR Mode
 ==============================
 
 This section explains encrypting data using AES in Counter (CTR) mode within the TEE.
-
-Function: ``encrypt_aes_data()``
----------------------------------
 
 - **Purpose:**  
   Encrypts plaintext data with AES-CTR mode using a securely stored AES key.
@@ -37,14 +34,13 @@ Function: ``encrypt_aes_data()``
   8. **Cleanup:**  
      Frees operation and closes key handles, zeroes sensitive buffers.
 
+- **Notes:**
+
+  - The first block of ciphertext contains the IV, which is critical for decryption.
+  - Each ciphertext has a random IV to ensure uniqueness and security.
+  - AES-CTR mode allows parallel encryption, making it efficient for stream data.
+
 .. literalinclude:: ../../../ta/crypto_operations.c
    :language: c
    :lines: 356-419
    :linenos:
-
-Security Notes
---------------
-
-- Each encryption uses a new random IV to guarantee uniqueness and security of the CTR stream.
-- IV is stored unencrypted at the start of the ciphertext for use during decryption.
-- AES-CTR allows parallel encryption and is well-suited for stream data.

@@ -1,9 +1,9 @@
 .. _aes:
 
-AES Encryption and Decryption
-=============================
+AES Implementation
+==================
 
-This section describes how AES (Advanced Encryption Standard) encryption and decryption operations are securely performed inside the Trusted Execution Environment (TEE).
+This section describes how AES (Advanced Encryption Standard) is implemented inside the Trusted Execution Environment (TEE).
 
 AES is a symmetric-key algorithm widely used for data confidentiality. Within the TEE, AES keys are securely generated, stored, and used for encrypting and decrypting data using the AES-CTR (Counter) mode.
 

@@ -1,7 +1,7 @@
 .. _rsa_get_public:
 
-Retrieving RSA Public Key
-===========================
+Retrieve Public Key
+===================
 
 This section documents how the Trusted Application (TA) securely retrieves the RSA public key from persistent storage.
 
@@ -17,7 +17,7 @@ Steps
 
 1. **Validate Output Buffer**:
    
-   - Ensures the caller's buffer is large enough to hold ``modulus + exponent``.
+   - Ensures the caller's buffer is large enough to hold `modulus + exponent`.
 
 2. **Open Persistent RSA Key Object**:
    
@@ -58,16 +58,8 @@ Total size is set via:
 
    *public_key_len = mod_len + exp_len;
 
-Usage
------
-
-The public key can be exported to the host system and used for:
-
-- Verifying digital signatures from the TA
-- Establishing trust between device and backend
-
-Errors
-------
+Possible Results
+----------------
 
 - ``TEE_ERROR_SHORT_BUFFER``: Output buffer too small
 - ``TEE_ERROR_ITEM_NOT_FOUND``: RSA key object missing

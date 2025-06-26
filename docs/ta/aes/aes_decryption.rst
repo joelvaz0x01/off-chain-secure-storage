@@ -1,12 +1,9 @@
 .. _aes_decryption:
 
-AES Decryption using CTR Mode
+Decryption using CTR Mode
 ==============================
 
 This section describes decrypting AES-CTR encrypted data within the TEE.
-
-Function: ``decrypt_aes_data()``
----------------------------------
 
 - **Purpose:**  
   Decrypts ciphertext encrypted by AES-CTR, retrieving plaintext.
@@ -40,14 +37,12 @@ Function: ``decrypt_aes_data()``
   9. **Cleanup:**  
      Frees operation and key handles, zeroes IV buffer.
 
+- **Notes:**
+
+  - The FIRST block of ciphertext contains the IV, which is critical for decryption.
+  - Output buffer must be large enough to hold decrypted data.
+
 .. literalinclude:: ../../../ta/crypto_operations.c
    :language: c
    :lines: 421-493
    :linenos:
-
-Security Notes
---------------
-
-- The IV must match exactly the one used in encryption for successful decryption.
-- Output buffer must be large enough to hold decrypted data.
-- Zeroing sensitive buffers reduces risk of key leakage.

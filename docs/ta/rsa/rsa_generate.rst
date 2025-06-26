@@ -1,7 +1,7 @@
 .. _rsa_generate:
 
-Generating RSA Key Pair
-=========================
+Key Pair Generation
+===================
 
 This section describes the generation and persistent storage of an RSA-2048 key pair in the Trusted Execution Environment (TEE).
 
@@ -46,8 +46,8 @@ Code Reference
    :lines: 52-122
    :linenos:
 
-Possible Errors
----------------
+Possible Results
+----------------
 
 - ``TEE_ERROR_ITEM_NOT_FOUND``: Expected on first launch
 - ``TEE_ERROR_OUT_OF_MEMORY``: If memory allocation fails

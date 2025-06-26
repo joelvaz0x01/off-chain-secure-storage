@@ -9,7 +9,7 @@
 project = 'Off-Chain Data Storage'
 copyright = '2025, Hugo Silva, Rúben Lopes, Joel Vaz'
 author = 'Hugo Silva, Rúben Lopes, Joel Vaz'
-release = '1.0'
+release = ''
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -26,3 +26,4 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
+html_favicon = '_static/favicon.ico'
