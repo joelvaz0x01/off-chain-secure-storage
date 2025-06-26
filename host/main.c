@@ -40,7 +40,7 @@
 
 /*
  * Storage data: "iot_device_<id>:<json_data>\0"
- * +12 for "iot_device_" prefix
+ * +12 for "iot_device_" and ":" prefix
  * +1 for null terminator
  */
 #define STORE_MAX_SIZE (DEVICE_ID_MAX_SIZE + 12 + JSON_MAX_SIZE + 1)
@@ -301,7 +301,7 @@ int main(int argc, char *argv[])
     {
         char store_data[STORE_MAX_SIZE] = {0};
 
-        if (strlen(argv[2]) >= DEVICE_ID_MAX_SIZE || strlen(argv[3]) > JSON_MAX_SIZE)
+        if (strlen(argv[2]) > DEVICE_ID_MAX_SIZE || strlen(argv[3]) > JSON_MAX_SIZE)
         {
             fprintf(stderr, "Error: IoT device ID or JSON data exceeds maximum size:\n");
             fprintf(stderr, "  IoT device ID max size: %d, got: %zu\n", DEVICE_ID_MAX_SIZE, strlen(argv[2]));

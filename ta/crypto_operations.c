@@ -21,7 +21,7 @@ TEE_Result compute_sha256(char *data, size_t data_sz, char *hash_output, size_t 
         return TEE_ERROR_SHORT_BUFFER;
     }
 
-    /* Allocate transient object for SHA256 */
+    /* Allocate operation for SHA256 */
     res = TEE_AllocateOperation(&op, TEE_ALG_SHA256, TEE_MODE_DIGEST, 0);
     if (res != TEE_SUCCESS)
     {

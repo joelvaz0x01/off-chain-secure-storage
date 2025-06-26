@@ -32,7 +32,7 @@
     { 0xe3ae8c32, 0x5fc1, 0x42e4, \
         { 0xb4, 0x76, 0xb3, 0x5f, 0xe3, 0xf8, 0xf0, 0x7d } }
 
-/*
+/**
  * Store JSON data in off-chain secure storage (persistent object)
  * @param param[0] (memref) IoT Device ID used the identify the persistent object
  * @param param[1] (memref) JSON data to be written in the persistent object
@@ -41,7 +41,7 @@
  */
 #define TA_OFF_CHAIN_SECURE_STORAGE_STORE_JSON 0
 
-/*
+/**
  * Retrieve JSON data from off-chain secure storage (persistent object)
  * @param param[0] (memref) JSON hash to retrieve JSON data
  * @param param[1] (memref) Buffer to store the JSON data
@@ -50,7 +50,7 @@
  */
 #define TA_OFF_CHAIN_SECURE_STORAGE_RETRIEVE_JSON 1
 
-/*
+/**
  * Get the SHA256 hash of a JSON data (persistent object)
  * @param param[0] (memref) JSON data to be hashed
  * @param param[1] (memref) Buffer to store the SHA256 hash of the JSON data
@@ -59,7 +59,7 @@
  */
 #define TA_OFF_CHAIN_SECURE_STORAGE_HASH_JSON 2
 
-/*
+/**
  * Get attestation of the TA
  * @param param[0] (memref) Buffer to store the attestation data
  * @param param[1] unused
@@ -68,7 +68,7 @@
  */
 #define TA_OFF_CHAIN_SECURE_STORAGE_GET_ATTESTATION 3
 
-/*
+/**
  * Get the public key of the TA
  * @param param[0] (memref) Buffer to store the public key
  * @param param[1] unused
