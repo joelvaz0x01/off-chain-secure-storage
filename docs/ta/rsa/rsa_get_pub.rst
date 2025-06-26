@@ -41,7 +41,7 @@ Code Reference
 
 .. literalinclude:: ../../../ta/crypto_operations.c
    :language: c
-   :lines: 356-417
+   :lines: 293-354
    :linenos:
 
 Output Format

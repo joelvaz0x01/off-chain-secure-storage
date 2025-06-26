@@ -39,7 +39,7 @@ Function: ``encrypt_aes_data()``
 
 .. literalinclude:: ../../../ta/crypto_operations.c
    :language: c
-   :lines: 419-482
+   :lines: 356-419
    :linenos:
 
 Security Notes

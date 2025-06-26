@@ -34,24 +34,17 @@
 
 /* TA API: UUID and command IDs */
 #include <secure_storage_ta.h>
+#include <crypto_operations_ta.h>
 
 #define DEVICE_ID_MAX_SIZE 64 /* Maximum size of IoT device ID */
 #define JSON_MAX_SIZE 7000    /* Maximum size of JSON data */
 
-/*
+/**
  * Storage data: "iot_device_<id>:<json_data>\0"
  * +12 for "iot_device_" and ":" prefix
  * +1 for null terminator
  */
 #define STORE_MAX_SIZE (DEVICE_ID_MAX_SIZE + 12 + JSON_MAX_SIZE + 1)
-
-#define HASH_SIZE (32 * 2) /* SHA256 hash size in hexadecimal string format (64 characters + null terminator) */
-#define RSA_KEY_SIZE_BITS 2048
-#define RSA_MODULUS_SIZE (RSA_KEY_SIZE_BITS / 8)
-#define RSA_EXPONENT_SIZE 4
-
-#define PUBLIC_KEY_SIZE (RSA_MODULUS_SIZE + RSA_EXPONENT_SIZE)
-#define ATTESTATION_DATA_SIZE (RSA_KEY_SIZE_BITS / 8)
 
 /* TEE resources */
 struct test_ctx
@@ -275,9 +268,9 @@ int main(int argc, char *argv[])
 {
     struct test_ctx ctx;
     char json_data[JSON_MAX_SIZE + 1] = {0};
-    char hash_output[HASH_SIZE];
-    char attestation_data[ATTESTATION_DATA_SIZE];
-    char public_key[PUBLIC_KEY_SIZE];
+    char hash_output[SHA256_HASH_SIZE];
+    char attestation_data[RSA_SIGNATURE_SIZE];
+    char public_key[RSA_PUBLIC_KEY_SIZE];
     TEEC_Result res;
 
     /* List of commands available */
@@ -316,7 +309,7 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-        res = store_json_data(&ctx, argv[2], store_data, strlen(store_data), hash_output, HASH_SIZE * 2);
+        res = store_json_data(&ctx, argv[2], store_data, strlen(store_data), hash_output, SHA256_HASH_SIZE * 2);
         if (res == TEEC_SUCCESS)
         {
             printf("SHA256 hash of the JSON data: %s\n", hash_output);
@@ -333,8 +326,8 @@ int main(int argc, char *argv[])
     }
     else if (0 == strcmp(argv[1], "retrieve"))
     {
-        memcpy(hash_output, argv[2], HASH_SIZE);
-        res = retrieve_json_data(&ctx, hash_output, HASH_SIZE, json_data, JSON_MAX_SIZE);
+        memcpy(hash_output, argv[2], SHA256_HASH_SIZE);
+        res = retrieve_json_data(&ctx, hash_output, SHA256_HASH_SIZE, json_data, JSON_MAX_SIZE);
         if (res == TEEC_ERROR_SHORT_BUFFER)
         {
             fprintf(stderr, "Error: The provided buffer is too short, expected size: %u\n", JSON_MAX_SIZE);
@@ -353,7 +346,7 @@ int main(int argc, char *argv[])
     else if (0 == strcmp(argv[1], "hash"))
     {
         strncpy(json_data, argv[2], JSON_MAX_SIZE);
-        res = hash_json_data(&ctx, json_data, strlen(json_data), hash_output, HASH_SIZE);
+        res = hash_json_data(&ctx, json_data, strlen(json_data), hash_output, SHA256_HASH_SIZE);
         if (res == TEEC_SUCCESS)
         {
             printf("SHA256 hash of the JSON data: %s\n", hash_output);
@@ -365,11 +358,11 @@ int main(int argc, char *argv[])
     }
     else if (0 == strcmp(argv[1], "attest"))
     {
-        res = get_attestation_data(&ctx, attestation_data, ATTESTATION_DATA_SIZE);
+        res = get_attestation_data(&ctx, attestation_data, RSA_SIGNATURE_SIZE);
         if (res == TEEC_SUCCESS)
         {
             printf("Attestation data: ");
-            for (size_t i = 0; i < ATTESTATION_DATA_SIZE; i++)
+            for (size_t i = 0; i < RSA_SIGNATURE_SIZE; i++)
             {
                 printf("%02x", (unsigned char)attestation_data[i]);
             }
@@ -382,11 +375,11 @@ int main(int argc, char *argv[])
     }
     else if (0 == strcmp(argv[1], "public-key"))
     {
-        res = get_public_key(&ctx, public_key, PUBLIC_KEY_SIZE);
+        res = get_public_key(&ctx, public_key, RSA_PUBLIC_KEY_SIZE);
         if (res == TEEC_SUCCESS)
         {
             printf("Public key: ");
-            for (size_t i = 0; i < PUBLIC_KEY_SIZE; i++)
+            for (size_t i = 0; i < RSA_PUBLIC_KEY_SIZE; i++)
             {
                 printf("%02x", (unsigned char)public_key[i]);
             }

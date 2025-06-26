@@ -32,7 +32,7 @@ The hashing is implemented via the ``compute_sha256()`` function, which calculat
 
 .. literalinclude:: ../../ta/crypto_operations.c
    :language: c
-   :lines: 5-46
+   :lines: 9-50
    :linenos:
 
 **Parameters:**

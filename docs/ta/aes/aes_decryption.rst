@@ -42,7 +42,7 @@ Function: ``decrypt_aes_data()``
 
 .. literalinclude:: ../../../ta/crypto_operations.c
    :language: c
-   :lines: 484-556
+   :lines: 421-493
    :linenos:
 
 Security Notes

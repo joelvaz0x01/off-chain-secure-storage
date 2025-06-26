@@ -33,7 +33,7 @@ Function: ``generate_aes_key()``
 
 .. literalinclude:: ../../../ta/crypto_operations.c
    :language: c
-   :lines: 187-260
+   :lines: 124-197
    :linenos:
 
 Notes

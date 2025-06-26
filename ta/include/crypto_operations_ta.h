@@ -1,12 +1,7 @@
 #ifndef __CRYPTO_STORAGE_TA_H__
 #define __CRYPTO_STORAGE_TA_H__
 
-#include <inttypes.h>
-#include <tee_internal_api.h>
-#include <tee_internal_api_extensions.h>
-
 #define RSA_KEYPAIR_STORAGE_NAME "rsaKeyPair"
-#define RSA_PUBLIC_KEY_STORAGE_NAME "rsaPublicKey"
 #define RSA_KEY_SIZE_BITS 2048
 #define RSA_MODULUS_SIZE (RSA_KEY_SIZE_BITS / 8)
 #define RSA_EXPONENT_SIZE 4
@@ -19,12 +14,15 @@
 
 #define SHA256_HASH_SIZE 32
 
-TEE_Result compute_sha256(char *json_data, size_t json_data_sz, char *hash_output, size_t *hash_output_sz);
+/* These functions prototypes are only available when TA is built */
+#ifdef TEE_INTERNAL_API_H
+TEE_Result compute_sha256(char *data, size_t data_sz, char *hash_output, size_t *hash_output_sz);
 TEE_Result generate_rsa_key_pair(TEE_ObjectHandle *key_pair_handle);
 TEE_Result generate_aes_key(TEE_ObjectHandle *key_handle);
 TEE_Result get_code_attestation(void *signature, size_t *sig_len);
 TEE_Result get_rsa_public_key(char *public_key, size_t *public_key_len);
 TEE_Result encrypt_aes_data(const char *plaintext, size_t plaintext_len, char *ciphertext, size_t *ciphertext_len);
 TEE_Result decrypt_aes_data(const char *ciphertext, size_t ciphertext_len, char *plaintext, size_t *plaintext_len);
+#endif
 
 #endif /* __CRYPTO_STORAGE_TA_H__ */

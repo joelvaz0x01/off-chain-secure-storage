@@ -26,10 +26,11 @@
  */
 
 #include <inttypes.h>
-#include <secure_storage_ta.h>
-#include <crypto_operations.h>
 #include <tee_internal_api.h>
 #include <tee_internal_api_extensions.h>
+
+#include <secure_storage_ta.h>
+#include <crypto_operations_ta.h>
 
 /**
  * Convert SHA256 hash to a hexadecimal string (no null-terminator)

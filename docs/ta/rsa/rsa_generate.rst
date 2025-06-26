@@ -34,16 +34,7 @@ Process
    - Stores the generated key using ``TEE_CreatePersistentObject()``.
    - Ensures the key is retained securely across sessions.
 
-4. **Extract Public Key Components**:
-   
-   - Reads modulus and exponent from the transient key using ``TEE_GetObjectBufferAttribute()``.
-
-5. **Store Public Key Separately**:
-   
-   - Allocates and populates a new transient object with public key attributes.
-   - Persists the public key object for retrieval later.
-
-6. **Cleanup**:
+4. **Cleanup**:
    
    - Frees temporary objects and handles.
 
@@ -52,7 +43,7 @@ Code Reference
 
 .. literalinclude:: ../../../ta/crypto_operations.c
    :language: c
-   :lines: 48-185
+   :lines: 52-122
    :linenos:
 
 Possible Errors

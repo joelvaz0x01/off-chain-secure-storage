@@ -1,6 +1,10 @@
-#include <crypto_operations.h>
-#include <secure_storage_ta.h>
+#include <inttypes.h>
+#include <tee_internal_api.h>
+#include <tee_internal_api_extensions.h>
 #include <string.h>
+
+#include <crypto_operations_ta.h>
+#include <secure_storage_ta.h>
 
 /**
  * Compute SHA256 hash of the data
@@ -55,7 +59,6 @@ TEE_Result generate_rsa_key_pair(TEE_ObjectHandle *key_pair_handle)
     uint32_t flags = TEE_DATA_FLAG_ACCESS_READ;
     TEE_ObjectHandle transient_key = TEE_HANDLE_NULL;
     TEE_ObjectHandle pubkey_transient = TEE_HANDLE_NULL;
-    TEE_ObjectHandle persistent_pubkey = TEE_HANDLE_NULL;
 
     /* Try to open existing key pair */
     res = TEE_OpenPersistentObject(
@@ -96,7 +99,6 @@ TEE_Result generate_rsa_key_pair(TEE_ObjectHandle *key_pair_handle)
     }
 
     /* Persist the key pair */
-    flags |= TEE_DATA_FLAG_ACCESS_WRITE_META; /* we need write-meta access */
     res = TEE_CreatePersistentObject(
         TEE_STORAGE_PRIVATE,              /* storageID */
         RSA_KEYPAIR_STORAGE_NAME,         /* objectID */
@@ -113,71 +115,6 @@ TEE_Result generate_rsa_key_pair(TEE_ObjectHandle *key_pair_handle)
         return res;
     }
 
-    /* Extract public key components */
-    uint8_t modulus[256];
-    uint8_t exponent[8];
-    uint32_t mod_len = sizeof(modulus);
-    uint32_t exp_len = sizeof(exponent);
-
-    res = TEE_GetObjectBufferAttribute(transient_key, TEE_ATTR_RSA_MODULUS, modulus, &mod_len);
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("Failed to get modulus: 0x%08x", res);
-        return res;
-    }
-
-    res = TEE_GetObjectBufferAttribute(transient_key, TEE_ATTR_RSA_PUBLIC_EXPONENT, exponent, &exp_len);
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("Failed to get exponent: 0x%08x", res);
-        return res;
-    }
-
-    /* Create RSA public key transient object */
-    res = TEE_AllocateTransientObject(TEE_TYPE_RSA_PUBLIC_KEY, RSA_KEY_SIZE_BITS, &pubkey_transient);
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("Failed to allocate public key object: 0x%08x", res);
-        return res;
-    }
-
-    TEE_Attribute pub_attrs[2];
-    TEE_InitRefAttribute(&pub_attrs[0], TEE_ATTR_RSA_MODULUS, modulus, mod_len);
-    TEE_InitRefAttribute(&pub_attrs[1], TEE_ATTR_RSA_PUBLIC_EXPONENT, exponent, exp_len);
-
-    res = TEE_PopulateTransientObject(pubkey_transient, pub_attrs, 2);
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("Failed to populate public key: 0x%08x", res);
-        TEE_FreeTransientObject(pubkey_transient);
-        return res;
-    }
-
-    /* Store public key persistently */
-    res = TEE_CreatePersistentObject(
-        TEE_STORAGE_PRIVATE,
-        RSA_PUBLIC_KEY_STORAGE_NAME,
-        strlen(RSA_PUBLIC_KEY_STORAGE_NAME),
-        flags,
-        pubkey_transient,
-        NULL, 0,
-        &persistent_pubkey);
-
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("Failed to store public key: 0x%08x", res);
-
-        if (*key_pair_handle != TEE_HANDLE_NULL)
-        {
-            TEE_CloseAndDeletePersistentObject1(*key_pair_handle);
-            *key_pair_handle = TEE_HANDLE_NULL;
-        }
-
-        TEE_FreeTransientObject(pubkey_transient);
-        return res;
-    }
-
-    TEE_CloseObject(persistent_pubkey);
     TEE_FreeTransientObject(pubkey_transient);
 
     DMSG("RSA key pair and public key successfully generated and stored");

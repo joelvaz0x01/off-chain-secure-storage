@@ -110,6 +110,8 @@ optee-offchain-storage/
 
 The application provides the following commands:
 
+---
+
 1. Store JSON File
 
 ```bash
@@ -117,11 +119,15 @@ The application provides the following commands:
 ```
 
 **Purpose:** Securely store IoT sensor data with device identification
+
 **Response:** Returns the file ID (SHA-256 hash of contents)
+
 **Example:**
 ```bash
 ./off_chain_secure_storage store FARM001 '{"temperature": 24.5, "humidity": 65.2}'
 ```
+
+---
 
 2. Retrieve JSON File
 
@@ -130,11 +136,15 @@ The application provides the following commands:
 ```
 
 **Purpose:** Retrieve stored data using its SHA-256 hash
+
 **Response:** Returns the decrypted JSON file contents
+
 **Example:**
 ```bash
 ./off_chain_secure_storage retrieve 'a1b2c3d4e5f6789...'
 ```
+
+---
 
 3. Get File Hash
 
@@ -143,11 +153,15 @@ The application provides the following commands:
 ```
 
 **Purpose:** Generate SHA-256 hash without storing the file
+
 **Response:** Returns cryptographic hash for blockchain anchoring
+
 **Example:**
 ```bash
 ./off_chain_secure_storage hash '{"sensor_id": "ENV001", "reading": 42}'
 ```
+
+---
 
 4. Get Digital Attestation
 
@@ -156,7 +170,10 @@ The application provides the following commands:
 ```
 
 **Purpose:** Obtain cryptographic proof of TA authenticity
+
 **Response:** Returns RSA-PSS signature of TA UUID
+
+---
 
 5. Get Public Key
 ```bash
@@ -164,6 +181,7 @@ The application provides the following commands:
 ```
 
 **Purpose:** Extract TA's public key for signature verification
+
 **Response:** Returns RSA-2048 public key components
 
 
