@@ -104,9 +104,9 @@ TEE_Result generate_rsa_key_pair(TEE_ObjectHandle *key_pair_handle)
         RSA_KEYPAIR_STORAGE_NAME,         /* objectID */
         strlen(RSA_KEYPAIR_STORAGE_NAME), /* objectIDLen */
         flags,                            /* flags */
-        transient_key,                    /* object */
+        transient_key,                    /* attributes */
         NULL, 0,                          /* initialData , initialDataLen */
-        key_pair_handle                   /* object handle */
+        key_pair_handle                   /* object */
     );
     if (res != TEE_SUCCESS)
     {

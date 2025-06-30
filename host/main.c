@@ -46,7 +46,7 @@
  */
 #define STORE_MAX_SIZE (DEVICE_ID_MAX_SIZE + 12 + JSON_MAX_SIZE + 1)
 
-/* TEE resources */
+/** TEE resources */
 struct test_ctx
 {
     TEEC_Context ctx;
@@ -78,6 +78,11 @@ void terminate_tee_session(struct test_ctx *ctx)
 
 /**
  * Store JSON data from secure storage
+ * 
+ * This function interacts with the TA to store JSON data securely.
+ * It uses the IoT device ID to identify the persistent object in the TEE.
+ * The JSON data is stored in a persistent object, and the SHA256 hash is retrieved.
+ *
  * @param ctx Pointer to the test context
  * @param iot_device_id ID of the IoT device
  * @param json_data Buffer to store the retrieved JSON data
@@ -121,6 +126,11 @@ TEEC_Result store_json_data(struct test_ctx *ctx, char *iot_device_id, char *jso
 
 /**
  * Retrieve JSON data in secure storage
+ * 
+ * This function interacts with the TA to retrieve JSON data securely.
+ * It uses the SHA256 hash of the JSON data to identify the persistent object in the TEE.
+ * The JSON data of a given hash is retrieved, if it exists.
+ *
  * @param ctx Pointer to the test context
  * @param json_hash SHA256 hash of the JSON data
  * @param json_hash_len Length of the JSON hash
@@ -167,6 +177,11 @@ TEEC_Result retrieve_json_data(struct test_ctx *ctx, char *json_hash, size_t jso
 
 /**
  * Get SHA256 hash of JSON data
+ * 
+ * This function interacts with the TA to compute the SHA256 hash of the provided JSON data.
+ * It uses the JSON data as input and returns the SHA256 hash in the output buffer.
+ * This does not store the JSON data on secure storage, it only computes the hash.
+ * 
  * @param ctx Pointer to the test context
  * @param json_data JSON data to be hashed
  * @param json_data_len Length of the JSON data
@@ -204,6 +219,10 @@ TEEC_Result hash_json_data(struct test_ctx *ctx, char *json_data, size_t json_da
 
 /**
  * Get attestation data of the TA
+ * 
+ * This function interacts with the TA to retrieve attestation data.
+ * It generates a code attestation report containing the TA UUID.
+ * 
  * @param ctx Pointer to the test context
  * @param attestation_data Buffer to store the attestation data
  * @param attestation_data_len Length of the attestation data buffer
@@ -235,6 +254,10 @@ TEEC_Result get_attestation_data(struct test_ctx *ctx, char *attestation_data, s
 
 /**
  * Get public key of the TA
+ * 
+ * This function interacts with the TA to retrieve the public key used for attestation.
+ * The public key is used to verify the attestation data.
+ * 
  * @param ctx Pointer to the test context
  * @param public_key Buffer to store the public key
  * @param public_key_len Length of the public key buffer
