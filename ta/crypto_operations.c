@@ -8,10 +8,16 @@
 
 /**
  * Compute SHA256 hash of the data
+ *
+ * This function computes the SHA256 hash of the provided data and stores the result in the output buffer.
+ * It uses the TEE API to allocate a digest operation, update it with the data, and finalize the digest.
+ * The output buffer must be large enough to hold the SHA256 hash (32 bytes).
+ *
  * @param data Pointer to the data to be hashed
  * @param data_sz Size of the data
  * @param hash_output Pointer to the output buffer for the hash
  * @param hash_output_sz Size of the output buffer, will be updated with actual size
+ * @return TEE_Success on success, or another code if an error occurs
  */
 TEE_Result compute_sha256(char *data, size_t data_sz, char *hash_output, size_t *hash_output_sz)
 {
@@ -50,8 +56,15 @@ exit:
 }
 
 /**
- * Generate RSA key pair and store it in secure storage
+ * Generate or get RSA key pair and store it in secure storage
+ *
+ * This function checks if an RSA key pair already exists in secure storage.
+ * If RSA key pair exists, it opens the persistent object and returns its handle.
+ * If not, it generates a new RSA key pair and persists it in secure storage.
+ * The key pair is generated with a default exponent and a key size of RSA_KEY_SIZE_BITS.
+ *
  * @param key_pair_handle Pointer to the handle of the RSA key pair object
+ * @return TEE_Success on success, or another code if an error occurs
  */
 TEE_Result generate_rsa_key_pair(TEE_ObjectHandle *key_pair_handle)
 {
@@ -123,7 +136,14 @@ TEE_Result generate_rsa_key_pair(TEE_ObjectHandle *key_pair_handle)
 
 /**
  * Generate a new AES key and store it in secure storage
+ *
+ * This function checks if an AES key already exists in secure storage.
+ * If the AES key exists, it opens the persistent object and returns its handle.
+ * If not, it generates a new AES key and persists it in secure storage.
+ * The AES key is generated with a size defined by AES_KEY_SIZE.
+ *
  * @param key_handle Pointer to the handle of the AES key object
+ * @return TEE_Success on success, or another code if an error occurs
  */
 TEE_Result generate_aes_key(TEE_ObjectHandle *key_handle)
 {
@@ -292,8 +312,15 @@ TEE_Result get_code_attestation(void *signature, size_t *sig_len)
 
 /**
  * Retrieve the public key of the RSA key pair stored in secure storage
+ *
+ * This function opens the persistent RSA key pair object and retrieves the modulus and public exponent.
+ * It then combines them into a single public key buffer.
+ * The public key is stored in the format: [modulus][exponent].
+ * The public key buffer must be large enough to hold the modulus and exponent.
+ *
  * @param public_key Buffer to store the public key
  * @param public_key_len Pointer to size of public key buffer; updated with actual public key length
+ * @return TEE_Success on success, or another code if an error occurs
  */
 TEE_Result get_rsa_public_key(char *public_key, size_t *public_key_len)
 {
@@ -355,10 +382,18 @@ TEE_Result get_rsa_public_key(char *public_key, size_t *public_key_len)
 
 /**
  * Encrypt data using AES-CTR mode
+ *
+ * This function encrypts the provided plaintext data using AES in CTR mode.
+ * It retrieves the AES key from secure storage, generates a random IV, and performs the encryption.
+ * The IV is prepended to the ciphertext (on the first AES_BLOCK_SIZE bytes).
+ * The ciphertext buffer must be large enough to hold the IV and the encrypted data.
+ * The ciphertext buffer will contain the following structure: [IV][Encrypted Data].
+ *
  * @param plaintext Pointer to the data to be encrypted
  * @param plaintext_len Length of the plaintext data
  * @param ciphertext Pointer to the buffer where the encrypted data will be stored
  * @param ciphertext_len Length of the ciphertext buffer, will be updated with actual size
+ * @return TEE_Success on success, or another code if an error occurs
  */
 TEE_Result encrypt_aes_data(const char *plaintext, size_t plaintext_len, char *ciphertext, size_t *ciphertext_len)
 {
@@ -420,10 +455,19 @@ exit:
 
 /**
  * Decrypt data using AES-CTR mode
+ *
+ * This function decrypts the provided ciphertext data using AES in CTR mode.
+ * It retrieves the AES key from secure storage, extracts the IV from the ciphertext, and performs the decryption.
+ * The ciphertext must contain the IV in the first AES_BLOCK_SIZE bytes.
+ * The plaintext buffer must be large enough to hold the decrypted data.
+ * The plaintext buffer will be updated with the decrypted data size.
+ * The ciphertext structure is expected to be: [IV][Encrypted Data].
+ *
  * @param ciphertext Pointer to the data to be decrypted
  * @param ciphertext_len Length of the ciphertext data
  * @param plaintext Pointer to the buffer where the decrypted data will be stored
  * @param plaintext_len Length of the plaintext buffer, will be updated with actual size
+ * @return TEE_Success on success, or another code if an error occurs
  */
 TEE_Result decrypt_aes_data(const char *ciphertext, size_t ciphertext_len, char *plaintext, size_t *plaintext_len)
 {

@@ -34,6 +34,11 @@
 
 /**
  * Convert SHA256 hash to a hexadecimal string (no null-terminator)
+ *
+ * This function converts the SHA256 hash data into a hexadecimal string representation.
+ * Each byte of the hash is represented by two hexadecimal characters.
+ * The output buffer must be large enough to hold the hexadecimal string (64 characters for SHA256).
+ *
  * @param output_hash_str Buffer to store the hexadecimal string representation of the hash
  * @param output_hash_str_sz Size of the output buffer
  * @param output_hash Pointer to the SHA256 hash data
@@ -57,8 +62,19 @@ static TEE_Result hash_to_hex_str(char *output_hash_str, size_t output_hash_str_
 
 /**
  * Store JSON object in off-chain secure storage (persistent object)
+ *
+ * This function stores JSON data associated with an IoT device ID in secure storage.
+ * It performs the following steps:
+ *   1. Takes the IoT device ID and JSON data as input parameters;
+ *   2. Computes the SHA256 hash of the JSON data;
+ *   3. Converts the hash to a hexadecimal string representation;
+ *   4. Uses this hash as the object ID for the persistent object;
+ *   5. Encrypts the JSON data using AES before storing it in the persistent object.
+ *   6. Returns the hash of original JSON data in the output parameter.
+ *
  * @param param_types Expected parameter types
  * @param params Parameters passed to the TA
+ * @return TEE_Success on success, or another code if an error occurs
  */
 static TEE_Result store_json_data(uint32_t param_types, TEE_Param params[4])
 {
@@ -199,8 +215,18 @@ exit:
 
 /**
  * Retrieve JSON object from off-chain secure storage (persistent object)
+ *
+ * This function retrieves JSON data associated with an IoT device ID from secure storage.
+ * It performs the following steps:
+ *   1. Takes the hash of data as input parameter;
+ *   2. Uses the hash as the object ID to open the persistent object;
+ *   3. Reads the encrypted data from the persistent object;
+ *   4. Decrypts the data using AES;
+ *   5. Returns it in the output.
+ *
  * @param param_types Expected parameter types of the command
  * @param params Parameters of the command
+ * @return TEE_Success on success, or another code if an error occurs
  */
 static TEE_Result retrieve_json_data(uint32_t param_types, TEE_Param params[4])
 {
@@ -322,8 +348,17 @@ exit:
 
 /**
  * Hash a given JSON object using SHA256
+ *
+ * This function computes the SHA256 hash of the provided JSON data.
+ *   1. Takes the JSON data as input;
+ *   2. Computes its hash;
+ *   3. Converts the hash to a hexadecimal string representation;
+ *   4. Returns it in the output parameter.
+ * The output buffer must be large enough to hold the hexadecimal string (64 characters for SHA256).
+ *
  * @param param_types Expected parameter types
  * @param params Parameters passed to the TA
+ * @return TEE_Success on success, or another code if an error occurs
  */
 static TEE_Result hash_json_data(uint32_t param_types, TEE_Param params[4])
 {
@@ -401,6 +436,7 @@ exit:
  * Get attestation data of the TA
  * @param param_types Expected parameter types
  * @param params Parameters passed to the TA
+ * @return TEE_Success on success, or another code if an error occurs
  */
 static TEE_Result get_attestation(uint32_t param_types, TEE_Param params[4])
 {
@@ -451,9 +487,18 @@ exit:
 }
 
 /**
- * Get the public key of the Ed25519 key pair stored in secure storage
+ * Get the public key of the RSA key pair stored in secure storage
+ *
+ * This function retrieves the public key of the RSA key pair used for signing attestation reports.
+ * It performs the following steps:
+ *   1. Allocates memory for the public key;
+ *   2. Calls the function that retrieves the RSA public key from secure storage;
+ *   3. Copies the public key to the output parameter.
+ * The output buffer must be large enough to hold the public key.
+ *
  * @param param_types Expected parameter types
  * @param params Parameters passed to the TA
+ * @return TEE_Success on success, or another code if an error occurs
  */
 static TEE_Result get_public_key(uint32_t param_types, TEE_Param params[4])
 {
@@ -503,7 +548,10 @@ exit:
 
 /**
  * Create entry point for the TA
+ *
  * This function is called when the TA is loaded into memory.
+ *
+ * @return TEE_Success on success, or another code if an error occurs
  */
 TEE_Result TA_CreateEntryPoint(void)
 {
@@ -555,6 +603,17 @@ void TA_CloseSessionEntryPoint(void __unused *session)
     /* Nothing to do */
 }
 
+/**
+ * Invoke a command in the TA
+ *
+ * This function is called when a command is invoked on the TA.
+ *
+ * @param session Session context
+ * @param command Command ID
+ * @param param_types Parameter types
+ * @param params Parameters passed to the TA
+ * @return TEE_Success on success, or another code if an error occurs
+ */
 TEE_Result TA_InvokeCommandEntryPoint(void __unused *session, uint32_t command, uint32_t param_types, TEE_Param params[4])
 {
     if (TA_OFF_CHAIN_SECURE_STORAGE_STORE_JSON == command)
