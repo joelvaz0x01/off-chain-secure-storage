@@ -61,8 +61,8 @@
 
 /**
  * Get attestation of the TA
- * @param param[0] (memref) Buffer to store the attestation data
- * @param param[1] unused
+ * @param param[0] (memref) Nonce provided by the verifier (generated automatically on host side)
+ * @param param[1] (memref) Buffer to store the attestation data
  * @param param[2] unused
  * @param param[3] unused
  */

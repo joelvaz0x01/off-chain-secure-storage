@@ -32,7 +32,7 @@ The SHA-256 functionality is encapsulated in the `compute_sha256()` function, wh
 
 .. literalinclude:: ../../ta/crypto_operations.c
    :language: c
-   :lines: 9-50
+   :lines: 22-56
    :linenos:
 
 **Function Parameters:**

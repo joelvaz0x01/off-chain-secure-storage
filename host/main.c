@@ -28,6 +28,8 @@
 #include <err.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 /* OP-TEE TEE client API (built by optee_client) */
 #include <tee_client_api.h>
@@ -35,6 +37,7 @@
 /* TA API: UUID and command IDs */
 #include <secure_storage_ta.h>
 #include <crypto_operations_ta.h>
+#include <attestation_ta.h>
 
 #define DEVICE_ID_MAX_SIZE 64 /* Maximum size of IoT device ID */
 #define JSON_MAX_SIZE 7000    /* Maximum size of JSON data */
@@ -74,6 +77,35 @@ void terminate_tee_session(struct test_ctx *ctx)
 {
     TEEC_CloseSession(&ctx->sess);
     TEEC_FinalizeContext(&ctx->ctx);
+}
+
+/**
+ * Generate a random nonce
+ *
+ * This function reads from /dev/urandom and generates a nonce of size NONCE_SIZE.
+ *
+ * @param nonce Buffer to store the generated nonce
+ * @return 0 on success, -1 on error
+ */
+int generate_nonce(uint8_t nonce[NONCE_SIZE])
+{
+    int fd = open("/dev/urandom", O_RDONLY);
+    if (fd < 0)
+    {
+        perror("Failed to open /dev/urandom");
+        return -1;
+    }
+
+    ssize_t read_bytes = read(fd, nonce, NONCE_SIZE);
+    close(fd);
+
+    if (read_bytes != NONCE_SIZE)
+    {
+        fprintf(stderr, "Failed to read nonce from /dev/urandom\n");
+        return -1;
+    }
+
+    return 0;
 }
 
 /**
@@ -221,13 +253,14 @@ TEEC_Result hash_json_data(struct test_ctx *ctx, char *json_data, size_t json_da
  * Get attestation data of the TA
  *
  * This function interacts with the TA to retrieve attestation data.
- * It generates a code attestation report containing the TA UUID.
- * 
+ * It generates a code attestation report containing the TA UUID, counter value, and the nonce provided by the verifier.
+ * This will return the attestation data, with its SHA256 hash and RSA signature.
+ *
  * @param ctx Pointer to the test context
  * @param attestation_data Buffer to store the attestation data
  * @param attestation_data_len Length of the attestation data buffer
  */
-TEEC_Result get_attestation_data(struct test_ctx *ctx, char *attestation_data, size_t attestation_data_len)
+TEEC_Result get_attestation_data(struct test_ctx *ctx, attestation_report_t *attestation_data, size_t attestation_data_len)
 {
     TEEC_Operation op;
     uint32_t origin;
@@ -235,15 +268,25 @@ TEEC_Result get_attestation_data(struct test_ctx *ctx, char *attestation_data, s
 
     memset(&op, 0, sizeof(op));
     op.paramTypes = TEEC_PARAM_TYPES(
-        TEEC_MEMREF_TEMP_OUTPUT, /* param[0] (memref) */
-        TEEC_NONE,               /* param[1] unused */
+        TEEC_MEMREF_TEMP_INPUT,  /* param[0] (memref) */
+        TEEC_MEMREF_TEMP_OUTPUT, /* param[1] (memref) */
         TEEC_NONE,               /* param[2] unused */
         TEEC_NONE                /* param[3] unused */
     );
 
-    /* param[0] (memref) Buffer to store the attestation data */
-    op.params[0].tmpref.buffer = attestation_data;
-    op.params[0].tmpref.size = attestation_data_len;
+    /* param[0] (memref) Nonce provided by the verifier */
+    uint8_t nonce[NONCE_SIZE];
+    if (generate_nonce(nonce) != 0)
+    {
+        fprintf(stderr, "Failed to generate nonce\n");
+        return TEEC_ERROR_GENERIC;
+    }
+    op.params[0].tmpref.buffer = nonce;
+    op.params[0].tmpref.size = NONCE_SIZE;
+
+    /* param[1] (memref) Buffer to store the attestation data */
+    op.params[1].tmpref.buffer = attestation_data;
+    op.params[1].tmpref.size = sizeof(attestation_report_t);
 
     res = TEEC_InvokeCommand(&ctx->sess, TA_OFF_CHAIN_SECURE_STORAGE_GET_ATTESTATION, &op, &origin);
     if (res != TEEC_SUCCESS)
@@ -292,7 +335,7 @@ int main(int argc, char *argv[])
     struct test_ctx ctx;
     char json_data[JSON_MAX_SIZE + 1] = {0};
     char hash_output[SHA256_HASH_SIZE];
-    char attestation_data[RSA_SIGNATURE_SIZE];
+    attestation_report_t attestation_data;
     char public_key[RSA_PUBLIC_KEY_SIZE];
     TEEC_Result res;
 
@@ -381,13 +424,33 @@ int main(int argc, char *argv[])
     }
     else if (0 == strcmp(argv[1], "attest"))
     {
-        res = get_attestation_data(&ctx, attestation_data, RSA_SIGNATURE_SIZE);
+        res = get_attestation_data(&ctx, &attestation_data, RSA_SIGNATURE_SIZE);
         if (res == TEEC_SUCCESS)
         {
-            printf("Attestation data: ");
+            printf("Attestation report:\n");
+            printf("  TA UUID: ");
+            for (size_t i = 0; i < sizeof(attestation_data.uuid); i++)
+            {
+                printf("%02x", ((unsigned char *)&attestation_data.uuid)[i]);
+            }
+            printf("\n");
+            printf("  Counter: %lu\n", attestation_data.counter);
+            printf("  Nonce: ");
+            for (size_t i = 0; i < NONCE_SIZE; i++)
+            {
+                printf("%02x", attestation_data.nonce[i]);
+            }
+            printf("\n");
+            printf("  SHA256 hash: ");
+            for (size_t i = 0; i < SHA256_HASH_SIZE; i++)
+            {
+                printf("%02x", attestation_data.hash[i]);
+            }
+            printf("\n");
+            printf("  RSA signature: ");
             for (size_t i = 0; i < RSA_SIGNATURE_SIZE; i++)
             {
-                printf("%02x", (unsigned char)attestation_data[i]);
+                printf("%02x", attestation_data.signature[i]);
             }
             printf("\n");
         }

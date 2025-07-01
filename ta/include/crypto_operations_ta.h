@@ -14,7 +14,6 @@
 
 /* Only available when building the TA code */
 #ifdef TEE_INTERNAL_API_H
-
 #define RSA_KEYPAIR_STORAGE_NAME "rsaKeyPair"
 #define AES_KEY_STORAGE_NAME "aesKey"
 

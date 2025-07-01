@@ -31,6 +31,8 @@
 
 #include <secure_storage_ta.h>
 #include <crypto_operations_ta.h>
+#include <random_counter_ta.h>
+#include <attestation_ta.h>
 
 /**
  * Convert SHA256 hash to a hexadecimal string (no null-terminator)
@@ -434,6 +436,15 @@ exit:
 
 /**
  * Get attestation data of the TA
+ *
+ * This function generates and returns an attestation report containing:
+ *   - TA UUID;
+ *   - Counter value;
+ *   - Nonce;
+ *   - SHA256 hash of the report;
+ *   - RSA signature of the report.
+ * The nonce is provided by the verifier and is used to ensure the uniqueness of the attestation report.
+ *
  * @param param_types Expected parameter types
  * @param params Parameters passed to the TA
  * @return TEE_Success on success, or another code if an error occurs
@@ -441,32 +452,41 @@ exit:
 static TEE_Result get_attestation(uint32_t param_types, TEE_Param params[4])
 {
     const uint32_t exp_param_types = TEE_PARAM_TYPES(
+        TEE_PARAM_TYPE_MEMREF_INPUT,
         TEE_PARAM_TYPE_MEMREF_OUTPUT,
-        TEE_PARAM_TYPE_NONE,
         TEE_PARAM_TYPE_NONE,
         TEE_PARAM_TYPE_NONE);
 
     TEE_Result res;
-    size_t attestation_data_sz;
-    void *attestation_data;
+    size_t nonce_sz;
+    uint8_t *nonce = NULL;
+    size_t attestation_data_sz = params[1].memref.size;
+    attestation_report_t attestation_data;
 
     /* Safely get the invocation parameters */
     if (param_types != exp_param_types)
         return TEE_ERROR_BAD_PARAMETERS;
 
-    /* Allocate buffer for attestation data */
-    attestation_data_sz = params[0].memref.size;
-    attestation_data = TEE_Malloc(attestation_data_sz, 0);
-    if (!attestation_data)
+    /* Check if nonce buffer correctly provided */
+    nonce_sz = params[0].memref.size;
+    if (nonce_sz != NONCE_SIZE)
+        return TEE_ERROR_BAD_PARAMETERS;
+
+    /* Check if attestation report buffer is large enough */
+    if (params[1].memref.size < sizeof(attestation_report_t))
+        return TEE_ERROR_SHORT_BUFFER;
+
+    /* Allocate buffer for user-provided nonce */
+    nonce = TEE_Malloc(nonce_sz, 0);
+    if (!nonce)
+    {
+        EMSG("Failed to allocate memory for nonce");
         return TEE_ERROR_OUT_OF_MEMORY;
+    }
+    TEE_MemMove(nonce, params[0].memref.buffer, nonce_sz);
 
     /* Get code attestation data */
-    res = get_code_attestation(attestation_data, &attestation_data_sz);
-    if (res == TEE_ERROR_SHORT_BUFFER)
-    {
-        EMSG("The provided buffer is too small, expected size: %zu bytes", attestation_data_sz);
-        goto exit;
-    }
+    res = get_code_attestation(&attestation_data, nonce);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to get code attestation data, res=0x%08x", res);
@@ -474,15 +494,12 @@ static TEE_Result get_attestation(uint32_t param_types, TEE_Param params[4])
     }
 
     /* Copy the attestation data to the output parameter */
-    TEE_MemMove(params[0].memref.buffer, attestation_data, attestation_data_sz);
-    params[0].memref.size = attestation_data_sz;
+    TEE_MemMove(params[1].memref.buffer, &attestation_data, attestation_data_sz);
+    params[1].memref.size = attestation_data_sz;
 
 exit:
-    if (attestation_data)
-    {
-        TEE_MemFill(attestation_data, 0, attestation_data_sz);
-        TEE_Free(attestation_data);
-    }
+    if (nonce)
+        TEE_Free(nonce);
     return res;
 }
 
@@ -616,6 +633,15 @@ void TA_CloseSessionEntryPoint(void __unused *session)
  */
 TEE_Result TA_InvokeCommandEntryPoint(void __unused *session, uint32_t command, uint32_t param_types, TEE_Param params[4])
 {
+    /* Update counter on each command execution */
+    TEE_Result res = update_counter();
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to update counter, res=0x%08x", res);
+        return res;
+    }
+
+    /* Check the command ID and call the appropriate function */
     if (TA_OFF_CHAIN_SECURE_STORAGE_STORE_JSON == command)
     {
         return store_json_data(param_types, params);

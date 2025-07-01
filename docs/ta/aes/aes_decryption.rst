@@ -44,5 +44,5 @@ This section describes decrypting AES-CTR encrypted data within the TEE.
 
 .. literalinclude:: ../../../ta/crypto_operations.c
    :language: c
-   :lines: 421-493
+   :lines: 378-443
    :linenos:

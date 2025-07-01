@@ -35,5 +35,5 @@ This section describes how to generate and persist an AES key inside the Trusted
 
 .. literalinclude:: ../../../ta/crypto_operations.c
    :language: c
-   :lines: 124-197
+   :lines: 148-217
    :linenos:

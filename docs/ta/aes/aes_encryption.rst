@@ -42,5 +42,5 @@ This section explains encrypting data using AES in Counter (CTR) mode within the
 
 .. literalinclude:: ../../../ta/crypto_operations.c
    :language: c
-   :lines: 356-419
+   :lines: 304-360
    :linenos:
