@@ -8,4 +8,5 @@ Trusted Application (TA)
    hash
    rsa/index
    aes/index
+   monotonic_counter
    attestation
