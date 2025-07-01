@@ -334,9 +334,9 @@ int main(int argc, char *argv[])
 {
     struct test_ctx ctx;
     char json_data[JSON_MAX_SIZE + 1] = {0};
-    char hash_output[SHA256_HASH_SIZE];
+    char hash_output[SHA256_HASH_SIZE * 2] = {0};
     attestation_report_t attestation_data;
-    char public_key[RSA_PUBLIC_KEY_SIZE];
+    char public_key[RSA_PUBLIC_KEY_SIZE] = {0};
     TEEC_Result res;
 
     /* List of commands available */
@@ -392,8 +392,8 @@ int main(int argc, char *argv[])
     }
     else if (0 == strcmp(argv[1], "retrieve"))
     {
-        memcpy(hash_output, argv[2], SHA256_HASH_SIZE);
-        res = retrieve_json_data(&ctx, hash_output, SHA256_HASH_SIZE, json_data, JSON_MAX_SIZE);
+        memcpy(hash_output, argv[2], SHA256_HASH_SIZE * 2);
+        res = retrieve_json_data(&ctx, hash_output, SHA256_HASH_SIZE * 2, json_data, JSON_MAX_SIZE);
         if (res == TEEC_ERROR_SHORT_BUFFER)
         {
             fprintf(stderr, "Error: The provided buffer is too short, expected size: %u\n", JSON_MAX_SIZE);
@@ -412,7 +412,7 @@ int main(int argc, char *argv[])
     else if (0 == strcmp(argv[1], "hash"))
     {
         strncpy(json_data, argv[2], JSON_MAX_SIZE);
-        res = hash_json_data(&ctx, json_data, strlen(json_data), hash_output, SHA256_HASH_SIZE);
+        res = hash_json_data(&ctx, json_data, strlen(json_data), hash_output, SHA256_HASH_SIZE * 2);
         if (res == TEEC_SUCCESS)
         {
             printf("SHA256 hash of the JSON data: %s\n", hash_output);
