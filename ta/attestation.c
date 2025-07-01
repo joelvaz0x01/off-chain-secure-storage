@@ -5,7 +5,7 @@
 
 #include <secure_storage_ta.h>
 #include <crypto_operations_ta.h>
-#include <random_counter_ta.h>
+#include <counter_ta.h>
 #include <attestation_ta.h>
 
 /**

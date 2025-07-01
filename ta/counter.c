@@ -3,7 +3,7 @@
 #include <tee_internal_api_extensions.h>
 #include <string.h>
 
-#include <random_counter_ta.h>
+#include <counter_ta.h>
 
 /**
  * Load the counter state from persistent storage.
@@ -108,7 +108,6 @@ TEE_Result update_counter(void)
     TEE_Result res;
     TEE_Time now;
     counter_state_t state = {0};
-    uint32_t random_factor;
 
     /*
      * Load the current counter state
@@ -139,15 +138,11 @@ TEE_Result update_counter(void)
     if (elapsed == 0)
         return TEE_SUCCESS;
 
-    /* Generate random factor to increment the counter */
-    TEE_GenerateRandom(&random_factor, sizeof(random_factor));
-    random_factor = 1 + (random_factor % MAX_RANDOM_MULTIPLIER); /* [1, MAX] */
-
     /*
      * Update counter by multiplying elapsed time with a random factor
      * By doing that, the counter will increase at a variable rate
      */
-    state.counter += elapsed * random_factor;
+    state.counter += 1;
     state.last_update = now;
 
     /* Save the updated state */
