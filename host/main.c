@@ -80,6 +80,32 @@ void terminate_tee_session(struct test_ctx *ctx)
 }
 
 /**
+ * Print UUID in a human-readable format
+ *
+ * This function prints the UUID in the standard format:
+ * 8-4-4-4-12 (hexadecimal digits).
+ *
+ * @param prefix A string to prefix the UUID output
+ * @param uuid The UUID to print
+ */
+void printf_uuid(char *prefix, TEEC_UUID uuid)
+{
+    printf("%s%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x\n",
+           prefix,
+           uuid.timeLow,
+           uuid.timeMid,
+           uuid.timeHiAndVersion,
+           uuid.clockSeqAndNode[0],
+           uuid.clockSeqAndNode[1],
+           uuid.clockSeqAndNode[2],
+           uuid.clockSeqAndNode[3],
+           uuid.clockSeqAndNode[4],
+           uuid.clockSeqAndNode[5],
+           uuid.clockSeqAndNode[6],
+           uuid.clockSeqAndNode[7]);
+}
+
+/**
  * Generate a random nonce
  *
  * This function reads from /dev/urandom and generates a nonce of size NONCE_SIZE.
@@ -260,7 +286,7 @@ TEEC_Result hash_json_data(struct test_ctx *ctx, char *json_data, size_t json_da
  * @param attestation_data Buffer to store the attestation data
  * @param attestation_data_len Length of the attestation data buffer
  */
-TEEC_Result get_attestation_data(struct test_ctx *ctx, attestation_report_t *attestation_data, size_t attestation_data_len)
+TEEC_Result get_attestation_data(struct test_ctx *ctx, attestation_report_t *attestation_data)
 {
     TEEC_Operation op;
     uint32_t origin;
@@ -390,7 +416,7 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Error: Failed to store JSON data for IoT device ID: %s\n", argv[2]);
         }
     }
-    else if (0 == strcmp(argv[1], "retrieve"))
+    else if (0 == strcmp(argv[1], "retrieve") && 3 == argc)
     {
         memcpy(hash_output, argv[2], SHA256_HASH_SIZE * 2);
         res = retrieve_json_data(&ctx, hash_output, SHA256_HASH_SIZE * 2, json_data, JSON_MAX_SIZE);
@@ -409,7 +435,7 @@ int main(int argc, char *argv[])
             printf("Retrieved JSON data: %s\n", json_data);
         }
     }
-    else if (0 == strcmp(argv[1], "hash"))
+    else if (0 == strcmp(argv[1], "hash") && 3 == argc)
     {
         strncpy(json_data, argv[2], JSON_MAX_SIZE);
         res = hash_json_data(&ctx, json_data, strlen(json_data), hash_output, SHA256_HASH_SIZE * 2);
@@ -422,59 +448,30 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Error: Failed to hash JSON data\n");
         }
     }
-    else if (0 == strcmp(argv[1], "attest"))
+    else if (0 == strcmp(argv[1], "attest") && 2 == argc)
     {
-        res = get_attestation_data(&ctx, &attestation_data, RSA_SIGNATURE_SIZE);
+        res = get_attestation_data(&ctx, &attestation_data);
         if (res == TEEC_SUCCESS)
         {
             printf("Attestation report:\n");
-            printf("  TA UUID: ");
-            for (size_t i = 0; i < sizeof(attestation_data.uuid); i++)
-            {
-                printf("%02x", ((unsigned char *)&attestation_data.uuid)[i]);
-            }
-            printf("\n");
+            printf_uuid("  TA UUID: ", attestation_data.uuid);
             printf("  Counter: %lu\n", attestation_data.counter);
-            printf("  Nonce: ");
-            for (size_t i = 0; i < NONCE_SIZE; i++)
-            {
-                printf("%02x", attestation_data.nonce[i]);
-            }
-            printf("\n");
-            printf("  SHA256 hash: ");
-            for (size_t i = 0; i < SHA256_HASH_SIZE; i++)
-            {
-                printf("%02x", attestation_data.hash[i]);
-            }
-            printf("\n");
-            printf("  RSA signature: ");
-            for (size_t i = 0; i < RSA_SIGNATURE_SIZE; i++)
-            {
-                printf("%02x", attestation_data.signature[i]);
-            }
-            printf("\n");
+            printf("  Nonce: %s\n", attestation_data.nonce);
+            printf("  SHA256 hash: %s\n", attestation_data.hash);
+            printf("  RSA signature: %s\n", attestation_data.signature);
         }
         else
         {
             fprintf(stderr, "Error: Failed to get attestation data\n");
         }
     }
-    else if (0 == strcmp(argv[1], "public-key"))
+    else if (0 == strcmp(argv[1], "public-key") && 2 == argc)
     {
-        res = get_public_key(&ctx, public_key, RSA_PUBLIC_KEY_SIZE);
+        res = get_public_key(&ctx, public_key, RSA_PUBLIC_KEY_SIZE * 2);
         if (res == TEEC_SUCCESS)
-        {
-            printf("Public key: ");
-            for (size_t i = 0; i < RSA_PUBLIC_KEY_SIZE; i++)
-            {
-                printf("%02x", (unsigned char)public_key[i]);
-            }
-            printf("\n");
-        }
+            printf("Public key: %s\n", public_key);
         else
-        {
             fprintf(stderr, "Error: Failed to get public key\n");
-        }
     }
     else
     {

@@ -35,34 +35,6 @@
 #include <attestation_ta.h>
 
 /**
- * Convert SHA256 hash to a hexadecimal string (no null-terminator)
- *
- * This function converts the SHA256 hash data into a hexadecimal string representation.
- * Each byte of the hash is represented by two hexadecimal characters.
- * The output buffer must be large enough to hold the hexadecimal string (64 characters for SHA256).
- *
- * @param output_hash_str Buffer to store the hexadecimal string representation of the hash
- * @param output_hash_str_sz Size of the output buffer
- * @param output_hash Pointer to the SHA256 hash data
- * @param output_hash_sz Size of the SHA256 hash data
- */
-static TEE_Result hash_to_hex_str(char *output_hash_str, size_t output_hash_str_sz, char *hash, size_t hash_sz)
-{
-    // Make sure output buffer size is enough: 2 chars per byte
-    if (output_hash_str_sz != SHA256_HASH_SIZE * 2)
-    {
-        EMSG("Output buffer size is incorrect, expected: %u, got: %zu", SHA256_HASH_SIZE * 2, output_hash_str_sz);
-        return TEE_ERROR_BAD_PARAMETERS;
-    }
-
-    for (size_t i = 0; i < hash_sz; i++)
-    {
-        snprintf(&output_hash_str[i * 2], 3, "%02x", (unsigned char)hash[i]);
-    }
-    return TEE_SUCCESS;
-}
-
-/**
  * Store JSON object in off-chain secure storage (persistent object)
  *
  * This function stores JSON data associated with an IoT device ID in secure storage.
@@ -95,11 +67,11 @@ static TEE_Result store_json_data(uint32_t param_types, TEE_Param params[4])
     char *output_hash = NULL; /* param[2].buffer */
     size_t output_hash_sz;    /* param[2].size */
 
-    size_t aux_hash_sz = SHA256_HASH_SIZE * 2; /* Size for the hexadecimal string representation of the hash */
-    char aux_hash[SHA256_HASH_SIZE * 2];       /* Auxiliary buffer for the hash in hex format */
+    uint8_t aux_hash[SHA256_HASH_SIZE];    /* Auxiliary hash for object ID */
+    size_t aux_hash_sz = sizeof(aux_hash); /* Size of the auxiliary hash */
 
-    size_t final_data_sz = 0; /* Size of the final encrypted data */
-    char *final_data = NULL;  /* Final buffer for encrypted data */
+    size_t encrypted_data_sz = 0;   /* Size of the final encrypted data */
+    uint8_t *encrypted_data = NULL; /* Final buffer for encrypted data */
 
     uint32_t flag = TEE_DATA_FLAG_ACCESS_READ; /* we can read the object */
 
@@ -137,16 +109,16 @@ static TEE_Result store_json_data(uint32_t param_types, TEE_Param params[4])
     }
 
     /* Allocate memory for the final encrypted data */
-    final_data_sz = data_sz + AES_BLOCK_SIZE;
-    final_data = TEE_Malloc(final_data_sz, 0);
-    if (!final_data)
+    encrypted_data_sz = data_sz + AES_BLOCK_SIZE;
+    encrypted_data = TEE_Malloc(encrypted_data_sz, 0);
+    if (!encrypted_data)
     {
         res = TEE_ERROR_OUT_OF_MEMORY;
         goto exit;
     }
 
     /* Compute SHA256 hash of the data */
-    res = compute_sha256(data, data_sz, output_hash, &output_hash_sz);
+    res = compute_sha256(data, data_sz, aux_hash, &aux_hash_sz);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to compute SHA256 hash, res=0x%08x", res);
@@ -154,24 +126,16 @@ static TEE_Result store_json_data(uint32_t param_types, TEE_Param params[4])
     }
 
     /* Convert the hash to a hexadecimal string */
-    res = hash_to_hex_str(aux_hash, aux_hash_sz, output_hash, output_hash_sz);
+    res = convert_to_hex_str(aux_hash, aux_hash_sz, output_hash, output_hash_sz);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to convert hash to hex string, res=0x%08x", res);
         goto exit;
     }
-
-    /* Check if the output buffer is large enough and copy the hash */
-    if (aux_hash_sz <= params[2].memref.size)
-        TEE_MemMove(params[2].memref.buffer, aux_hash, aux_hash_sz);
-    else
-    {
-        res = TEE_ERROR_SHORT_BUFFER;
-        goto exit;
-    }
+    TEE_MemMove(params[2].memref.buffer, output_hash, output_hash_sz);
 
     /* Encrypt data */
-    res = encrypt_aes_data(data, data_sz, final_data, &final_data_sz);
+    res = encrypt_aes_data(data, data_sz, encrypted_data, &encrypted_data_sz);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to encrypt data, res=0x%08x", res);
@@ -181,12 +145,12 @@ static TEE_Result store_json_data(uint32_t param_types, TEE_Param params[4])
     /* Create object in secure storage and fill with data */
     res = TEE_CreatePersistentObject(
         TEE_STORAGE_PRIVATE, /* storageID */
-        aux_hash,            /* objectID */
-        aux_hash_sz,         /* objectIDLen */
+        output_hash,         /* objectID */
+        output_hash_sz,      /* objectIDLen */
         flag,                /* flags */
         TEE_HANDLE_NULL,     /* attributes */
-        final_data,          /* initialData */
-        final_data_sz,       /* initialDataLen */
+        encrypted_data,      /* initialData */
+        encrypted_data_sz,   /* initialDataLen */
         &object              /* object */
     );
     if (res != TEE_SUCCESS)
@@ -247,8 +211,8 @@ static TEE_Result retrieve_json_data(uint32_t param_types, TEE_Param params[4])
     char *decrypted_data = NULL; /* param[1].buffer */
     size_t decrypted_data_sz;    /* param[1].size */
 
-    char *encrypted_data = NULL;  /* Auxiliary buffer for encrypted data */
-    size_t encrypted_data_sz = 0; /* Auxiliary size for encrypted data */
+    uint8_t *encrypted_data = NULL; /* Auxiliary buffer for encrypted data */
+    size_t encrypted_data_sz = 0;   /* Auxiliary size for encrypted data */
 
     uint32_t flag = TEE_DATA_FLAG_ACCESS_READ; /* we can read the object */
     uint32_t read_bytes = 0;
@@ -377,7 +341,7 @@ static TEE_Result hash_json_data(uint32_t param_types, TEE_Param params[4])
     size_t hash_output_sz; /* param[1].size */
 
     size_t aux_hash_sz = SHA256_HASH_SIZE; /* Size of auxiliary hash buffer */
-    char aux_hash[aux_hash_sz];            /* Auxiliary buffer for SHA256 hash */
+    uint8_t aux_hash[aux_hash_sz];         /* Auxiliary buffer for SHA256 hash */
 
     /* Safely get the invocation parameters */
     if (param_types != exp_param_types)
@@ -408,7 +372,7 @@ static TEE_Result hash_json_data(uint32_t param_types, TEE_Param params[4])
     }
 
     /* Convert the hash output to a hexadecimal string representation */
-    res = hash_to_hex_str(hash_output, hash_output_sz, aux_hash, aux_hash_sz);
+    res = convert_to_hex_str(aux_hash, aux_hash_sz, hash_output, hash_output_sz);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to convert hash output to hex string, res=0x%08x", res);
@@ -458,10 +422,10 @@ static TEE_Result get_attestation(uint32_t param_types, TEE_Param params[4])
         TEE_PARAM_TYPE_NONE);
 
     TEE_Result res;
-    size_t nonce_sz;
-    uint8_t *nonce = NULL;
-    size_t attestation_data_sz = params[1].memref.size;
-    attestation_report_t attestation_data;
+    size_t nonce_sz;                               /* param[0].memref.size */
+    uint8_t *nonce = NULL;                         /* param[0].memref.buffer */
+    size_t attestation_data_sz;                    /* param[1].memref.size */
+    attestation_report_t *attestation_data = NULL; /* param[1].memref.buffer */
 
     /* Safely get the invocation parameters */
     if (param_types != exp_param_types)
@@ -472,9 +436,13 @@ static TEE_Result get_attestation(uint32_t param_types, TEE_Param params[4])
     if (nonce_sz != NONCE_SIZE)
         return TEE_ERROR_BAD_PARAMETERS;
 
-    /* Check if attestation report buffer is large enough */
-    if (params[1].memref.size < sizeof(attestation_report_t))
+    /* Check if the output buffer is large enough */
+    attestation_data_sz = params[1].memref.size;
+    if (attestation_data_sz < sizeof(attestation_report_t))
+    {
+        EMSG("Output buffer is too small for attestation data, required size: %zu", sizeof(attestation_report_t));
         return TEE_ERROR_SHORT_BUFFER;
+    }
 
     /* Allocate buffer for user-provided nonce */
     nonce = TEE_Malloc(nonce_sz, 0);
@@ -485,8 +453,18 @@ static TEE_Result get_attestation(uint32_t param_types, TEE_Param params[4])
     }
     TEE_MemMove(nonce, params[0].memref.buffer, nonce_sz);
 
+    /* Allocate memory for attestation data */
+    attestation_data = TEE_Malloc(sizeof(attestation_report_t), 0);
+    if (!attestation_data)
+    {
+        EMSG("Failed to allocate memory for attestation data");
+        res = TEE_ERROR_OUT_OF_MEMORY;
+        goto exit;
+    }
+    TEE_MemMove(attestation_data, params[1].memref.buffer, sizeof(attestation_report_t));
+
     /* Get code attestation data */
-    res = get_code_attestation(&attestation_data, nonce);
+    res = get_code_attestation(attestation_data, nonce);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to get code attestation data, res=0x%08x", res);
@@ -494,12 +472,15 @@ static TEE_Result get_attestation(uint32_t param_types, TEE_Param params[4])
     }
 
     /* Copy the attestation data to the output parameter */
-    TEE_MemMove(params[1].memref.buffer, &attestation_data, attestation_data_sz);
-    params[1].memref.size = attestation_data_sz;
+    TEE_MemMove(params[1].memref.buffer, attestation_data, sizeof(attestation_report_t));
+    params[1].memref.size = sizeof(attestation_report_t);
 
 exit:
     if (nonce)
         TEE_Free(nonce);
+    if (attestation_data)
+        TEE_Free(attestation_data);
+
     return res;
 }
 
@@ -527,7 +508,7 @@ static TEE_Result get_public_key(uint32_t param_types, TEE_Param params[4])
 
     TEE_Result res;
     size_t public_key_sz;
-    void *public_key;
+    uint8_t *public_key;
 
     /* Safely get the invocation parameters */
     if (param_types != exp_param_types)
@@ -549,9 +530,19 @@ static TEE_Result get_public_key(uint32_t param_types, TEE_Param params[4])
         goto exit;
     }
 
-    /* Copy the public key to the output parameter */
-    TEE_MemMove(params[0].memref.buffer, public_key, public_key_sz);
-    params[0].memref.size = public_key_sz;
+    /*
+     * Copy the correct size to the output parameter
+     * Each byte of the public key is represented by two hexadecimal characters,
+     */
+    params[0].memref.size = public_key_sz * 2;
+
+    /* Convert public key to a hexadecimal string representation */
+    res = convert_to_hex_str(public_key, public_key_sz, params[0].memref.buffer, params[0].memref.size);
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to convert public key to hex string, res=0x%08x", res);
+        goto exit;
+    }
 
 exit:
     if (public_key)

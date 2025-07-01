@@ -7,6 +7,35 @@
 #include <secure_storage_ta.h>
 
 /**
+ * Convert binary data to a hexadecimal string representation
+ *
+ * This function converts binary data into a hexadecimal string format.
+ * Each byte of the input data is represented by two hexadecimal characters.
+ * The output buffer must be large enough to hold the hexadecimal string.
+ *
+ * @param data Pointer to the binary data to be converted
+ * @param data_sz Size of the binary data in bytes
+ * @param output_data_str Pointer to the output buffer where the hexadecimal string will be stored
+ * @param output_data_str_sz Size of the output buffer in bytes
+ * @return TEE_SUCCESS on success, or another code if an error occurs
+ */
+TEE_Result convert_to_hex_str(void *data, size_t data_sz, char *output_data_str, size_t output_data_str_sz)
+{
+    /* Make sure output buffer size is enough: 2 chars per byte */
+    if (output_data_str_sz != data_sz * 2)
+    {
+        EMSG("Output buffer is too small, expected: %lu, got: %zu", data_sz * 2, output_data_str_sz);
+        return TEE_ERROR_SHORT_BUFFER;
+    }
+
+    for (size_t i = 0; i < data_sz; i++)
+    {
+        snprintf(&output_data_str[i * 2], 3, "%02x", ((uint8_t *)data)[i]);
+    }
+    return TEE_SUCCESS;
+}
+
+/**
  * Compute SHA256 hash of the data
  *
  * This function computes the SHA256 hash of the provided data and stores the result in the output buffer.
@@ -19,7 +48,7 @@
  * @param hash_output_sz Size of the output buffer, will be updated with actual size
  * @return TEE_Success on success, or another code if an error occurs
  */
-TEE_Result compute_sha256(char *data, size_t data_sz, char *hash_output, size_t *hash_output_sz)
+TEE_Result compute_sha256(char *data, size_t data_sz, uint8_t *hash_output, size_t *hash_output_sz)
 {
     TEE_Result res;
     TEE_OperationHandle op = TEE_HANDLE_NULL;
@@ -228,13 +257,13 @@ TEE_Result generate_aes_key(TEE_ObjectHandle *key_handle)
  * @param public_key_len Pointer to size of public key buffer; updated with actual public key length
  * @return TEE_Success on success, or another code if an error occurs
  */
-TEE_Result get_rsa_public_key(char *public_key, size_t *public_key_len)
+TEE_Result get_rsa_public_key(uint8_t *public_key, size_t *public_key_len)
 {
     TEE_Result res;
     TEE_ObjectHandle pubkey_handle = TEE_HANDLE_NULL;
     uint32_t flags = TEE_DATA_FLAG_ACCESS_READ;
-    char modulus[RSA_MODULUS_SIZE];
-    char exponent[RSA_EXPONENT_SIZE];
+    uint8_t modulus[RSA_MODULUS_SIZE];
+    uint8_t exponent[RSA_EXPONENT_SIZE];
     uint32_t mod_len = sizeof(modulus);
     uint32_t exp_len = sizeof(exponent);
 
@@ -301,12 +330,12 @@ TEE_Result get_rsa_public_key(char *public_key, size_t *public_key_len)
  * @param ciphertext_len Length of the ciphertext buffer, will be updated with actual size
  * @return TEE_Success on success, or another code if an error occurs
  */
-TEE_Result encrypt_aes_data(const char *plaintext, size_t plaintext_len, char *ciphertext, size_t *ciphertext_len)
+TEE_Result encrypt_aes_data(const char *plaintext, size_t plaintext_len, uint8_t *ciphertext, size_t *ciphertext_len)
 {
     TEE_Result res;
     TEE_ObjectHandle key_handle = TEE_HANDLE_NULL;
     TEE_OperationHandle operation = TEE_HANDLE_NULL;
-    char iv[AES_BLOCK_SIZE] = {0};
+    uint8_t iv[AES_BLOCK_SIZE] = {0};
     uint32_t enc_len = 0;
 
     /* Retrieve the AES key from persistent storage or generate a new one */
@@ -375,12 +404,12 @@ exit:
  * @param plaintext_len Length of the plaintext buffer, will be updated with actual size
  * @return TEE_Success on success, or another code if an error occurs
  */
-TEE_Result decrypt_aes_data(const char *ciphertext, size_t ciphertext_len, char *plaintext, size_t *plaintext_len)
+TEE_Result decrypt_aes_data(const uint8_t *ciphertext, size_t ciphertext_len, char *plaintext, size_t *plaintext_len)
 {
     TEE_Result res;
     TEE_ObjectHandle key_handle = TEE_HANDLE_NULL;
     TEE_OperationHandle operation = TEE_HANDLE_NULL;
-    char iv[AES_BLOCK_SIZE] = {0};
+    uint8_t iv[AES_BLOCK_SIZE] = {0};
     uint32_t dec_len = 0;
 
     /* Check if the output buffer is large enough */

@@ -17,12 +17,13 @@
 #define RSA_KEYPAIR_STORAGE_NAME "rsaKeyPair"
 #define AES_KEY_STORAGE_NAME "aesKey"
 
-TEE_Result compute_sha256(char *data, size_t data_sz, char *hash_output, size_t *hash_output_sz);
+TEE_Result convert_to_hex_str(void *data, size_t data_sz, char *output_data_str, size_t output_data_str_sz);
+TEE_Result compute_sha256(char *data, size_t data_sz, uint8_t *hash_output, size_t *hash_output_sz);
 TEE_Result generate_rsa_key_pair(TEE_ObjectHandle *key_pair_handle);
 TEE_Result generate_aes_key(TEE_ObjectHandle *key_handle);
-TEE_Result get_rsa_public_key(char *public_key, size_t *public_key_len);
-TEE_Result encrypt_aes_data(const char *plaintext, size_t plaintext_len, char *ciphertext, size_t *ciphertext_len);
-TEE_Result decrypt_aes_data(const char *ciphertext, size_t ciphertext_len, char *plaintext, size_t *plaintext_len);
+TEE_Result get_rsa_public_key(uint8_t *public_key, size_t *public_key_len);
+TEE_Result encrypt_aes_data(const char *plaintext, size_t plaintext_len, uint8_t *ciphertext, size_t *ciphertext_len);
+TEE_Result decrypt_aes_data(const uint8_t *ciphertext, size_t ciphertext_len, char *plaintext, size_t *plaintext_len);
 #endif /* TEE_INTERNAL_API_H */
 
 #endif /* __CRYPTO_STORAGE_TA_H__ */
