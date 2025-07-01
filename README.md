@@ -25,7 +25,7 @@ This project implements a secure off-chain data storage solution using OP-TEE (O
 ## :open_file_folder: Project Structure
 
 ```bash
-optee-offchain-storage/
+off_chain_secure_storage/
 ├── docs/      # Documentation files
 │
 ├── host/             # Client Application (Normal World)
@@ -204,7 +204,7 @@ make --jobs=$(nproc)
 
 # Clone this project
 cd $OPTEE_DIR/optee_examples
-git clone https://github.com/detiuaveiro/assignement-2-proj2-86157_103009_124461.git optee-off-chain-storage
+git clone https://github.com/detiuaveiro/assignement-2-proj2-86157_103009_124461.git off_chain_secure_storage
 
 # Rebuild OP-TEE with the new project
 cd $OPTEE_DIR/build
