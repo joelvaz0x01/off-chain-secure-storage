@@ -46,6 +46,11 @@ The function ``load_counter()`` is responsible for loading the counter's state f
 
 This ensures the counter state is preserved across reboots or power cycles.
 
+.. literalinclude:: ../../ta/counter.c
+   :language: c
+   :lines: 21-54
+   :linenos:
+
 ---
 
 Saving the Counter State
@@ -58,6 +63,11 @@ The function ``save_counter()`` saves the current counter state:
 - Closes the object handle after successful write.
 
 This operation guarantees the updated counter value is securely stored.
+
+.. literalinclude:: ../../ta/counter.c
+   :language: c
+   :lines: 66-92
+   :linenos:
 
 ---
 
@@ -80,6 +90,11 @@ The function ``update_counter()`` performs the logic of advancing the monotonic 
 
 By tracking elapsed time and increasing the counter accordingly, this function ensures the counter strictly increases with time.
 
+.. literalinclude:: ../../ta/counter.c
+   :language: c
+   :lines: 106-157
+   :linenos:
+
 ---
 
 Retrieving the Counter Value
@@ -88,7 +103,23 @@ Retrieving the Counter Value
 The function ``get_counter()`` simply loads the current counter state and returns the counter value to the caller.  
 This provides a reliable and consistent way to query the monotonic counter.
 
+.. literalinclude:: ../../ta/counter.c
+   :language: c
+   :lines: 169-185
+   :linenos:
+
 ---
+
+Retrieving the Last Update Timestamp
+------------------------------------
+
+The function ``get_last_update_time()`` retrieves the timestamp of the last counter update.  
+This will be used when doing the attestation to ensure the counter is not only increasing but also reflects the time of the last update.
+
+.. literalinclude:: ../../ta/counter.c
+   :language: c
+   :lines: 197-213
+   :linenos:
 
 Security Considerations
 -----------------------
@@ -96,32 +127,3 @@ Security Considerations
 - The counter cannot decrease, protecting against rollback attacks.
 - Use of the TEE persistent storage API ensures counter state confidentiality and integrity.
 - The counter update logic relies on secure system time provided by the TEE.
-
----
-
-Code Snippets
--------------
-
-.. literalinclude:: ../../ta/counter.c
-   :language: c
-   :lines: 21-54
-   :linenos:
-   :caption: Load Counter Function
-
-.. literalinclude:: ../../ta/counter.c
-   :language: c
-   :lines: 66-92
-   :linenos:
-   :caption: Save Counter Function
-
-.. literalinclude:: ../../ta/counter.c
-   :language: c
-   :lines: 106-157
-   :linenos:
-   :caption: Update Counter Function
-
-.. literalinclude:: ../../ta/counter.c
-   :language: c
-   :lines: 169-183
-   :linenos:
-   :caption: Retrieve Counter Function

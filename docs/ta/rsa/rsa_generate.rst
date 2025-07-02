@@ -43,7 +43,7 @@ Code Reference
 
 .. literalinclude:: ../../../ta/crypto_operations.c
    :language: c
-   :lines: 98-164
+   :lines: 69-135
    :linenos:
 
 Possible Results

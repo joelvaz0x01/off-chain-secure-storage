@@ -28,11 +28,11 @@ The following macro defines the size of a SHA-256 hash output:
 Implementation
 --------------
 
-The SHA-256 functionality is encapsulated in the `compute_sha256()` function, which computes the hash of a given buffer within the TEE.
+The SHA-256 functionality is encapsulated in the ``compute_sha256()`` function, which computes the hash of a given buffer within the TEE.
 
 .. literalinclude:: ../../ta/crypto_operations.c
    :language: c
-   :lines: 51-85
+   :lines: 22-56
    :linenos:
 
 **Function Parameters:**

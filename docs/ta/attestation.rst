@@ -24,16 +24,17 @@ The report contains:
 
 ---
 
-Source Code Explanation
------------------------
+Implementation
+--------------
 
-The core function implementing this is:
+The attestation report generation is implemented in the function ``generate_attestation_report()``.
 
-.. code-block:: c
+.. literalinclude:: ../../ta/attestation.c
+   :language: c
+   :lines: 31-215
+   :linenos:
 
-   TEE_Result get_code_attestation(attestation_report_t *report_out, uint8_t nonce[NONCE_SIZE])
-
-**Parameters:**
+**Function Parameters:**
 
 - ``report_out``: Pointer to a structure where the attestation report will be stored.
 - ``nonce``: A random nonce provided by the verifier to ensure the report's freshness.
@@ -110,9 +111,3 @@ Security Considerations
 - The verifier's nonce ensures freshness of the attestation.
 - RSA signatures using RSASSA-PSS with SHA-256 provide strong cryptographic guarantees.
 - Converting sensitive binary data into hex strings prevents encoding issues during report transmission.
-
-.. literalinclude:: ../../ta/attestation.c
-   :language: c
-   :lines: 29-162
-   :linenos:
-   :caption: Attestation Report Generation Function

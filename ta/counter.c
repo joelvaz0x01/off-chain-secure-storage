@@ -171,6 +171,7 @@ TEE_Result get_counter(uint64_t *counter_value)
     TEE_Result res;
     counter_state_t state = {0};
 
+    /* Load the current counter state */
     res = load_counter(&state);
     if (res != TEE_SUCCESS)
     {
@@ -178,6 +179,7 @@ TEE_Result get_counter(uint64_t *counter_value)
         return res;
     }
 
+    /* Get the current counter value */
     *counter_value = state.counter;
     return TEE_SUCCESS;
 }
@@ -197,6 +199,7 @@ TEE_Result get_counter_timestamp(TEE_Time *timestamp)
     TEE_Result res;
     counter_state_t state = {0};
 
+    /* Load the current counter state */
     res = load_counter(&state);
     if (res != TEE_SUCCESS)
     {
@@ -204,6 +207,7 @@ TEE_Result get_counter_timestamp(TEE_Time *timestamp)
         return res;
     }
 
+    /* Get the last update timestamp */
     *timestamp = state.last_update;
     return TEE_SUCCESS;
 }
