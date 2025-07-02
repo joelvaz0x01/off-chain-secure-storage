@@ -80,32 +80,6 @@ void terminate_tee_session(struct test_ctx *ctx)
 }
 
 /**
- * Print UUID in a human-readable format
- *
- * This function prints the UUID in the standard format:
- * 8-4-4-4-12 (hexadecimal digits).
- *
- * @param prefix A string to prefix the UUID output
- * @param uuid The UUID to print
- */
-void printf_uuid(char *prefix, TEEC_UUID uuid)
-{
-    printf("%s%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x\n",
-           prefix,
-           uuid.timeLow,
-           uuid.timeMid,
-           uuid.timeHiAndVersion,
-           uuid.clockSeqAndNode[0],
-           uuid.clockSeqAndNode[1],
-           uuid.clockSeqAndNode[2],
-           uuid.clockSeqAndNode[3],
-           uuid.clockSeqAndNode[4],
-           uuid.clockSeqAndNode[5],
-           uuid.clockSeqAndNode[6],
-           uuid.clockSeqAndNode[7]);
-}
-
-/**
  * Generate a random nonce
  *
  * This function reads from /dev/urandom and generates a nonce of size NONCE_SIZE.
@@ -454,11 +428,9 @@ int main(int argc, char *argv[])
         if (res == TEEC_SUCCESS)
         {
             printf("Attestation report:\n");
-            printf_uuid("  TA UUID: ", attestation_data.uuid);
-            printf("  Counter: %lu\n", attestation_data.counter);
-            printf("  Nonce: %s\n", attestation_data.nonce);
-            printf("  SHA256 hash: %s\n", attestation_data.hash);
-            printf("  RSA signature: %s\n", attestation_data.signature);
+            printf("  Data: %s\n", attestation_data.data);
+            printf("  Hash: %s\n", attestation_data.hash);
+            printf("  Signature: %s\n", attestation_data.signature);
         }
         else
         {

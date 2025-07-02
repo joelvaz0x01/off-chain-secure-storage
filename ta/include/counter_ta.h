@@ -1,6 +1,7 @@
 #ifndef __RANDOM_COUNTER_H__
 #define __RANDOM_COUNTER_H__
 
+/* Only available when building the TA code */
 #ifdef TEE_INTERNAL_API_H
 #define COUNTER_STORAGE_NAME "counterState"
 #define MAX_RANDOM_MULTIPLIER 100

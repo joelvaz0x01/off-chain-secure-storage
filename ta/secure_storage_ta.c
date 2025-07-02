@@ -33,6 +33,7 @@
 #include <crypto_operations_ta.h>
 #include <counter_ta.h>
 #include <attestation_ta.h>
+#include <to_str_ta.h>
 
 /**
  * Store JSON object in off-chain secure storage (persistent object)

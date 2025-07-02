@@ -7,6 +7,7 @@
 #include <crypto_operations_ta.h>
 #include <counter_ta.h>
 #include <attestation_ta.h>
+#include <to_str_ta.h>
 
 /**
  * Get code attestation report
@@ -34,25 +35,30 @@ TEE_Result get_code_attestation(attestation_report_t *report_out, uint8_t nonce[
     TEE_Result res;
     TEE_ObjectHandle key_handle = TEE_HANDLE_NULL;
     TEE_OperationHandle sign_op = TEE_HANDLE_NULL;
-    TEE_UUID uuid = TA_OFF_CHAIN_SECURE_STORAGE_UUID;
+    char uuid[UUID_SIZE] = {0};
     uint32_t flags = TEE_DATA_FLAG_ACCESS_READ;
-    uint64_t counter;
+    uint64_t counter = 0;
 
-    char data_to_hash[sizeof(uuid) + sizeof(counter) + NONCE_SIZE];
-    size_t data_to_hash_sz = 0;
-
+    /* Auxiliary buffers for hash and signature */
     uint8_t aux_hash[HASH_SIZE];
     size_t aux_hash_len = sizeof(aux_hash);
 
     uint8_t aux_signature[RSA_SIGNATURE_SIZE];
     uint32_t aux_signature_len = sizeof(aux_signature);
 
-    char nonce_hex_str[NONCE_SIZE_HEX + 1] = {0};
+    /* Buffer for nonce hexadecimal representation */
+    char nonce_hex_str[NONCE_SIZE_HEX] = {0};
     size_t nonce_hex_str_len = sizeof(nonce_hex_str);
 
+    /* Buffer for attestation report hash */
     char hash_output[HASH_SIZE_HEX + 1] = {0};
     size_t hash_output_sz = sizeof(hash_output);
 
+    /* Buffer for data to hash */
+    char *data_to_hash = NULL;
+    size_t data_to_hash_sz = 1; /* +1 for null terminator */
+
+    /* Buffer for RSA signature */
     char signature_output[RSA_SIGNATURE_SIZE_HEX + 1] = {0};
     size_t signature_output_sz = sizeof(signature_output);
 
@@ -61,18 +67,47 @@ TEE_Result get_code_attestation(attestation_report_t *report_out, uint8_t nonce[
     if (res != TEE_SUCCESS)
         return res;
 
-    /* Build data to hash */
-    memcpy(data_to_hash, &uuid, sizeof(uuid));
-    data_to_hash_sz += sizeof(uuid);
+    /* Get the TA UUID */
+    TEE_UUID ta_uuid = TA_OFF_CHAIN_SECURE_STORAGE_UUID;
+    res = uuid_to_str(uuid, ta_uuid);
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to get TA UUID, res=0x%08x", res);
+        return res;
+    }
 
-    memcpy(data_to_hash + data_to_hash_sz, &counter, sizeof(counter));
-    data_to_hash_sz += sizeof(counter);
+    /* Convert nonce to a hexadecimal string representation */
+    res = convert_to_hex_str(nonce, NONCE_SIZE, nonce_hex_str, nonce_hex_str_len);
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to convert nonce to hex string, res=0x%08x", res);
+        goto exit;
+    }
 
-    memcpy(data_to_hash + data_to_hash_sz, nonce, NONCE_SIZE);
-    data_to_hash_sz += NONCE_SIZE;
+    /* Prepare data to hash */
+    data_to_hash_sz += snprintf(
+        NULL, 0,                                  /* buffer, buffer_len */
+        "{uuid:%s,counter:%" PRIu64 ",nonce:%s}", /* format string */
+        uuid, counter, nonce_hex_str              /* data_to_hash */
+    );
+
+    data_to_hash = TEE_Malloc(data_to_hash_sz, 0);
+    if (!data_to_hash)
+    {
+        EMSG("Failed to allocate memory for data to hash");
+        res = TEE_ERROR_OUT_OF_MEMORY;
+        goto exit;
+    }
+
+    /* Fill the data to hash buffer */
+    snprintf(
+        data_to_hash, data_to_hash_sz,            /* buffer, buffer_len */
+        "{uuid:%s,counter:%" PRIu64 ",nonce:%s}", /* format string */
+        uuid, counter, nonce_hex_str              /* data_to_hash */
+    );
 
     /* Compute SHA256 hash of the data */
-    res = compute_sha256(data_to_hash, data_to_hash_sz, aux_hash, &aux_hash_len);
+    res = compute_sha256(data_to_hash, data_to_hash_sz - 1, aux_hash, &aux_hash_len);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to compute SHA256 hash, res=0x%08x", res);
@@ -133,14 +168,6 @@ TEE_Result get_code_attestation(attestation_report_t *report_out, uint8_t nonce[
         goto exit;
     }
 
-    /* Convert nonce to a hexadecimal string representation */
-    res = convert_to_hex_str(nonce, NONCE_SIZE, nonce_hex_str, nonce_hex_str_len - 1);
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("Failed to convert nonce to hex string, res=0x%08x", res);
-        goto exit;
-    }
-
     /* Convert report hash to a hexadecimal string representation */
     res = convert_to_hex_str(aux_hash, aux_hash_len, hash_output, hash_output_sz - 1);
     if (res != TEE_SUCCESS)
@@ -158,13 +185,13 @@ TEE_Result get_code_attestation(attestation_report_t *report_out, uint8_t nonce[
     }
 
     /* Fill the report structure */
-    report_out->uuid = uuid;
-    report_out->counter = counter;
-    memcpy(report_out->nonce, nonce_hex_str, nonce_hex_str_len - 1);
-    memcpy(report_out->hash, hash_output, hash_output_sz - 1);
-    memcpy(report_out->signature, signature_output, signature_output_sz - 1);
+    memcpy(report_out->data, data_to_hash, data_to_hash_sz);
+    memcpy(report_out->hash, hash_output, hash_output_sz);
+    memcpy(report_out->signature, signature_output, signature_output_sz);
 
 exit:
+    if (data_to_hash)
+        TEE_Free(data_to_hash);
     if (sign_op != TEE_HANDLE_NULL)
         TEE_FreeOperation(sign_op);
     if (key_handle != TEE_HANDLE_NULL)

@@ -20,7 +20,6 @@
 #define RSA_KEYPAIR_STORAGE_NAME "rsaKeyPair"
 #define AES_KEY_STORAGE_NAME "aesKey"
 
-TEE_Result convert_to_hex_str(uint8_t *data, size_t data_sz, char *output_data_str, size_t output_data_str_sz);
 TEE_Result compute_sha256(char *data, size_t data_sz, uint8_t *hash_output, size_t *hash_output_sz);
 TEE_Result generate_rsa_key_pair(TEE_ObjectHandle *key_pair_handle);
 TEE_Result generate_aes_key(TEE_ObjectHandle *key_handle);

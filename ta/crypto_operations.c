@@ -7,35 +7,6 @@
 #include <secure_storage_ta.h>
 
 /**
- * Convert binary data to a hexadecimal string representation
- *
- * This function converts binary data into a hexadecimal string format.
- * Each byte of the input data is represented by two hexadecimal characters.
- * The output buffer must be large enough to hold the hexadecimal string.
- *
- * @param data Pointer to the binary data to be converted
- * @param data_sz Size of the binary data in bytes
- * @param output_data_str Pointer to the output buffer where the hexadecimal string will be stored
- * @param output_data_str_sz Size of the output buffer in bytes
- */
-TEE_Result convert_to_hex_str(uint8_t *data, size_t data_sz, char *output_data_str, size_t output_data_str_sz)
-{
-    /* Make sure output buffer size is enough: 2 chars per byte */
-    if (output_data_str_sz != data_sz * 2)
-    {
-        EMSG("Output buffer is too small, expected: %lu, got: %zu", data_sz * 2, output_data_str_sz);
-        return TEE_ERROR_SHORT_BUFFER;
-    }
-
-    for (size_t i = 0; i < data_sz; i++)
-    {
-        snprintf(&output_data_str[i * 2], 3, "%02x", data[i]);
-    }
-
-    return TEE_SUCCESS;
-}
-
-/**
  * Compute SHA256 hash of the data
  *
  * This function computes the SHA256 hash of the provided data and stores the result in the output buffer.
