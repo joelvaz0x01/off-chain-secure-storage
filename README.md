@@ -243,7 +243,7 @@ Commands:
 To build the documentation, you will need to install Python and make the following commands:
 ```bash
 # Install Python virtual environment
-cd $OPTEE_DIR
+cd $OPTEE_DIR/optee_examples/off_chain_secure_storage
 python -m venv .venv
 source .venv/bin/activate
 
