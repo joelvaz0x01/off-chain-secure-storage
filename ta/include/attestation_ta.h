@@ -18,18 +18,19 @@
  * Data sizes:
  *   - UUID: char[UUID_SIZE]
  *   - Counter: uint64_t
+ *   - Last counter timestamp: uint32_t
  *   - Nonce: uint8_t[NONCE_SIZE]
  *
  * This structure contains:
- *   - Data to hash: UUID + Counter + Nonce
+ *   - Data to hash: UUID + Counter + Timestamp + Nonce + 34 characters for formatting + 1 for null terminator
  *   - Hash of the attestation report: SHA256
  *   - Signature of the attestation report: RSA signature
  */
 typedef struct
 {
-    char data[(UUID_SIZE - 1) + sizeof(uint64_t) + NONCE_SIZE_HEX + 23 + 1]; /* Data to hash */
-    char hash[HASH_SIZE_HEX + 1];                                            /* Hash of attestation report */
-    char signature[RSA_SIGNATURE_SIZE_HEX + 1];                              /* Signature of attestation report */
+    char data[(UUID_SIZE - 1) + sizeof(uint64_t) + sizeof(uint32_t) + NONCE_SIZE_HEX + 34 + 1]; /* Data to hash */
+    char hash[HASH_SIZE_HEX + 1];                                                               /* Hash of attestation report */
+    char signature[RSA_SIGNATURE_SIZE_HEX + 1];                                                 /* Signature of attestation report */
 } attestation_report_t;
 
 /* Only available when building the TA code */

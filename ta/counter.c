@@ -181,3 +181,29 @@ TEE_Result get_counter(uint64_t *counter_value)
     *counter_value = state.counter;
     return TEE_SUCCESS;
 }
+
+/**
+ * Get the last update timestamp of the counter
+ *
+ * This function will:
+ *   1. Load the current counter state;
+ *   2. Fill the provided timestamp pointer with the last update time.
+ *
+ * @param timestamp Pointer to store the last update time
+ * @return TEE_Success on success, or another code if an error occurs
+ */
+TEE_Result get_counter_timestamp(TEE_Time *timestamp)
+{
+    TEE_Result res;
+    counter_state_t state = {0};
+
+    res = load_counter(&state);
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to load counter state, res=0x%08x", res);
+        return res;
+    }
+
+    *timestamp = state.last_update;
+    return TEE_SUCCESS;
+}

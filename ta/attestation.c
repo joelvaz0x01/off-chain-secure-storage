@@ -15,6 +15,7 @@
  * Generates the attestation report hash that includes:
  *   - TA UUID;
  *   - Counter value;
+ *   - Last counter timestamp;
  *   - Nonce provided by the verifier;
  *
  * Returns an attestation report containing:
@@ -46,6 +47,12 @@ TEE_Result get_code_attestation(attestation_report_t *report_out, uint8_t nonce[
     uint8_t aux_signature[RSA_SIGNATURE_SIZE];
     uint32_t aux_signature_len = sizeof(aux_signature);
 
+    /* Get the TA UUID */
+    TEE_UUID ta_uuid = TA_OFF_CHAIN_SECURE_STORAGE_UUID;
+
+    /* Last counter timestamp */
+    TEE_Time timestamp;
+
     /* Buffer for nonce hexadecimal representation */
     char nonce_hex_str[NONCE_SIZE_HEX] = {0};
     size_t nonce_hex_str_len = sizeof(nonce_hex_str);
@@ -68,7 +75,6 @@ TEE_Result get_code_attestation(attestation_report_t *report_out, uint8_t nonce[
         return res;
 
     /* Get the TA UUID */
-    TEE_UUID ta_uuid = TA_OFF_CHAIN_SECURE_STORAGE_UUID;
     res = uuid_to_str(uuid, ta_uuid);
     if (res != TEE_SUCCESS)
     {
@@ -84,11 +90,19 @@ TEE_Result get_code_attestation(attestation_report_t *report_out, uint8_t nonce[
         goto exit;
     }
 
+    /* Get the last counter timestamp (uint32_t) */
+    res = get_counter_timestamp(&timestamp);
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to get counter timestamp, res=0x%08x", res);
+        return res;
+    }
+
     /* Prepare data to hash */
     data_to_hash_sz += snprintf(
-        NULL, 0,                                  /* buffer, buffer_len */
-        "{uuid:%s,counter:%" PRIu64 ",nonce:%s}", /* format string */
-        uuid, counter, nonce_hex_str              /* data_to_hash */
+        NULL, 0,                                                        /* buffer, buffer_len */
+        "{uuid:%s,counter:%" PRIu64 ",timestamp:%" PRIu32 ",nonce:%s}", /* format string */
+        uuid, counter, timestamp.seconds, nonce_hex_str                 /* data_to_hash */
     );
 
     data_to_hash = TEE_Malloc(data_to_hash_sz, 0);
@@ -101,9 +115,9 @@ TEE_Result get_code_attestation(attestation_report_t *report_out, uint8_t nonce[
 
     /* Fill the data to hash buffer */
     snprintf(
-        data_to_hash, data_to_hash_sz,            /* buffer, buffer_len */
-        "{uuid:%s,counter:%" PRIu64 ",nonce:%s}", /* format string */
-        uuid, counter, nonce_hex_str              /* data_to_hash */
+        data_to_hash, data_to_hash_sz,                                  /* buffer, buffer_len */
+        "{uuid:%s,counter:%" PRIu64 ",timestamp:%" PRIu32 ",nonce:%s}", /* format string */
+        uuid, counter, timestamp.seconds, nonce_hex_str                 /* data_to_hash */
     );
 
     /* Compute SHA256 hash of the data */

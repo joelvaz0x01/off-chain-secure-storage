@@ -17,6 +17,7 @@ TEE_Result load_counter(counter_state_t *state);
 TEE_Result save_counter(const counter_state_t *state);
 TEE_Result update_counter(void);
 TEE_Result get_counter(uint64_t *counter_value);
+TEE_Result get_counter_timestamp(TEE_Time *timestamp);
 #endif /* TEE_INTERNAL_API_H */
 
 #endif /* __RANDOM_COUNTER_H__ */
