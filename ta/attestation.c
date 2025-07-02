@@ -41,11 +41,20 @@ TEE_Result get_code_attestation(attestation_report_t *report_out, uint8_t nonce[
     char data_to_hash[sizeof(uuid) + sizeof(counter) + NONCE_SIZE];
     size_t data_to_hash_sz = 0;
 
-    uint8_t aux_hash[SHA256_HASH_SIZE];
+    uint8_t aux_hash[HASH_SIZE];
     size_t aux_hash_len = sizeof(aux_hash);
 
     uint8_t aux_signature[RSA_SIGNATURE_SIZE];
     uint32_t aux_signature_len = sizeof(aux_signature);
+
+    char nonce_hex_str[NONCE_SIZE_HEX + 1] = {0};
+    size_t nonce_hex_str_len = sizeof(nonce_hex_str);
+
+    char hash_output[HASH_SIZE_HEX + 1] = {0};
+    size_t hash_output_sz = sizeof(hash_output);
+
+    char signature_output[RSA_SIGNATURE_SIZE_HEX + 1] = {0};
+    size_t signature_output_sz = sizeof(signature_output);
 
     /* Get current counter value */
     res = get_counter(&counter);
@@ -125,7 +134,7 @@ TEE_Result get_code_attestation(attestation_report_t *report_out, uint8_t nonce[
     }
 
     /* Convert nonce to a hexadecimal string representation */
-    res = convert_to_hex_str(nonce, NONCE_SIZE, report_out->nonce, sizeof(report_out->nonce));
+    res = convert_to_hex_str(nonce, NONCE_SIZE, nonce_hex_str, nonce_hex_str_len - 1);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to convert nonce to hex string, res=0x%08x", res);
@@ -133,7 +142,7 @@ TEE_Result get_code_attestation(attestation_report_t *report_out, uint8_t nonce[
     }
 
     /* Convert report hash to a hexadecimal string representation */
-    res = convert_to_hex_str(aux_hash, aux_hash_len, report_out->hash, sizeof(report_out->hash));
+    res = convert_to_hex_str(aux_hash, aux_hash_len, hash_output, hash_output_sz - 1);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to convert report hash to hex string, res=0x%08x", res);
@@ -141,7 +150,7 @@ TEE_Result get_code_attestation(attestation_report_t *report_out, uint8_t nonce[
     }
 
     /* Convert signature to a hexadecimal string representation */
-    res = convert_to_hex_str(aux_signature, aux_signature_len, report_out->signature, sizeof(report_out->signature));
+    res = convert_to_hex_str(aux_signature, aux_signature_len, signature_output, signature_output_sz - 1);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to convert signature to hex string, res=0x%08x", res);
@@ -151,6 +160,9 @@ TEE_Result get_code_attestation(attestation_report_t *report_out, uint8_t nonce[
     /* Fill the report structure */
     report_out->uuid = uuid;
     report_out->counter = counter;
+    memcpy(report_out->nonce, nonce_hex_str, nonce_hex_str_len - 1);
+    memcpy(report_out->hash, hash_output, hash_output_sz - 1);
+    memcpy(report_out->signature, signature_output, signature_output_sz - 1);
 
 exit:
     if (sign_op != TEE_HANDLE_NULL)

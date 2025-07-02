@@ -6,6 +6,7 @@
 #endif /* __CRYPTO_STORAGE_TA_H__ */
 
 #define NONCE_SIZE 32
+#define NONCE_SIZE_HEX (NONCE_SIZE * 2)
 
 typedef struct
 {
@@ -16,9 +17,9 @@ typedef struct
 #endif /* TEE_INTERNAL_API_H */
 
     uint64_t counter;                       /* Counter value */
-    char nonce[NONCE_SIZE * 2];             /* Nonce for attestation */
-    char hash[SHA256_HASH_SIZE * 2];        /* Hash of attestation report */
-    char signature[RSA_SIGNATURE_SIZE * 2]; /* Signature of attestation report */
+    char nonce[NONCE_SIZE_HEX + 1];         /* Nonce for attestation */
+    char hash[HASH_SIZE_HEX + 1];           /* Hash of attestation report */
+    char signature[RSA_SIGNATURE_SIZE_HEX + 1]; /* Signature of attestation report */
 } attestation_report_t;
 
 /* Only available when building the TA code */

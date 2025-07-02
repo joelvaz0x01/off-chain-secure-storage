@@ -17,9 +17,8 @@
  * @param data_sz Size of the binary data in bytes
  * @param output_data_str Pointer to the output buffer where the hexadecimal string will be stored
  * @param output_data_str_sz Size of the output buffer in bytes
- * @return TEE_SUCCESS on success, or another code if an error occurs
  */
-TEE_Result convert_to_hex_str(void *data, size_t data_sz, char *output_data_str, size_t output_data_str_sz)
+TEE_Result convert_to_hex_str(uint8_t *data, size_t data_sz, char *output_data_str, size_t output_data_str_sz)
 {
     /* Make sure output buffer size is enough: 2 chars per byte */
     if (output_data_str_sz != data_sz * 2)
@@ -30,8 +29,9 @@ TEE_Result convert_to_hex_str(void *data, size_t data_sz, char *output_data_str,
 
     for (size_t i = 0; i < data_sz; i++)
     {
-        snprintf(&output_data_str[i * 2], 3, "%02x", ((uint8_t *)data)[i]);
+        snprintf(&output_data_str[i * 2], 3, "%02x", data[i]);
     }
+
     return TEE_SUCCESS;
 }
 
@@ -54,9 +54,9 @@ TEE_Result compute_sha256(char *data, size_t data_sz, uint8_t *hash_output, size
     TEE_OperationHandle op = TEE_HANDLE_NULL;
 
     /* Check if the output buffer is large enough */
-    if (*hash_output_sz < SHA256_HASH_SIZE)
+    if (*hash_output_sz < HASH_SIZE)
     {
-        EMSG("Output buffer is too small, expected size: %u bytes", SHA256_HASH_SIZE);
+        EMSG("Output buffer is too small, expected size: %u bytes", HASH_SIZE);
         return TEE_ERROR_SHORT_BUFFER;
     }
 

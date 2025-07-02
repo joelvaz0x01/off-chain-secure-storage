@@ -360,9 +360,9 @@ int main(int argc, char *argv[])
 {
     struct test_ctx ctx;
     char json_data[JSON_MAX_SIZE + 1] = {0};
-    char hash_output[SHA256_HASH_SIZE * 2] = {0};
+    char hash_output[HASH_SIZE_HEX] = {0};
     attestation_report_t attestation_data;
-    char public_key[RSA_PUBLIC_KEY_SIZE] = {0};
+    char public_key[RSA_PUBLIC_KEY_SIZE_HEX] = {0};
     TEEC_Result res;
 
     /* List of commands available */
@@ -401,7 +401,7 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-        res = store_json_data(&ctx, argv[2], store_data, strlen(store_data), hash_output, SHA256_HASH_SIZE * 2);
+        res = store_json_data(&ctx, argv[2], store_data, strlen(store_data), hash_output, HASH_SIZE_HEX);
         if (res == TEEC_SUCCESS)
         {
             printf("SHA256 hash of the JSON data: %s\n", hash_output);
@@ -418,8 +418,8 @@ int main(int argc, char *argv[])
     }
     else if (0 == strcmp(argv[1], "retrieve") && 3 == argc)
     {
-        memcpy(hash_output, argv[2], SHA256_HASH_SIZE * 2);
-        res = retrieve_json_data(&ctx, hash_output, SHA256_HASH_SIZE * 2, json_data, JSON_MAX_SIZE);
+        memcpy(hash_output, argv[2], HASH_SIZE_HEX);
+        res = retrieve_json_data(&ctx, hash_output, HASH_SIZE_HEX, json_data, JSON_MAX_SIZE);
         if (res == TEEC_ERROR_SHORT_BUFFER)
         {
             fprintf(stderr, "Error: The provided buffer is too short, expected size: %u\n", JSON_MAX_SIZE);
@@ -438,7 +438,7 @@ int main(int argc, char *argv[])
     else if (0 == strcmp(argv[1], "hash") && 3 == argc)
     {
         strncpy(json_data, argv[2], JSON_MAX_SIZE);
-        res = hash_json_data(&ctx, json_data, strlen(json_data), hash_output, SHA256_HASH_SIZE * 2);
+        res = hash_json_data(&ctx, json_data, strlen(json_data), hash_output, HASH_SIZE_HEX);
         if (res == TEEC_SUCCESS)
         {
             printf("SHA256 hash of the JSON data: %s\n", hash_output);
@@ -467,7 +467,7 @@ int main(int argc, char *argv[])
     }
     else if (0 == strcmp(argv[1], "public-key") && 2 == argc)
     {
-        res = get_public_key(&ctx, public_key, RSA_PUBLIC_KEY_SIZE * 2);
+        res = get_public_key(&ctx, public_key, RSA_PUBLIC_KEY_SIZE_HEX);
         if (res == TEEC_SUCCESS)
             printf("Public key: %s\n", public_key);
         else

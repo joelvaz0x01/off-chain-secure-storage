@@ -67,7 +67,7 @@ static TEE_Result store_json_data(uint32_t param_types, TEE_Param params[4])
     char *output_hash = NULL; /* param[2].buffer */
     size_t output_hash_sz;    /* param[2].size */
 
-    uint8_t aux_hash[SHA256_HASH_SIZE];    /* Auxiliary hash for object ID */
+    uint8_t aux_hash[HASH_SIZE];           /* Auxiliary hash for object ID */
     size_t aux_hash_sz = sizeof(aux_hash); /* Size of the auxiliary hash */
 
     size_t encrypted_data_sz = 0;   /* Size of the final encrypted data */
@@ -340,8 +340,8 @@ static TEE_Result hash_json_data(uint32_t param_types, TEE_Param params[4])
     char *hash_output;     /* param[1].buffer */
     size_t hash_output_sz; /* param[1].size */
 
-    size_t aux_hash_sz = SHA256_HASH_SIZE; /* Size of auxiliary hash buffer */
-    uint8_t aux_hash[aux_hash_sz];         /* Auxiliary buffer for SHA256 hash */
+    uint8_t aux_hash[HASH_SIZE];           /* Auxiliary buffer for SHA256 hash */
+    size_t aux_hash_sz = sizeof(aux_hash); /* Size of auxiliary hash buffer */
 
     /* Safely get the invocation parameters */
     if (param_types != exp_param_types)
@@ -461,7 +461,6 @@ static TEE_Result get_attestation(uint32_t param_types, TEE_Param params[4])
         res = TEE_ERROR_OUT_OF_MEMORY;
         goto exit;
     }
-    TEE_MemMove(attestation_data, params[1].memref.buffer, sizeof(attestation_report_t));
 
     /* Get code attestation data */
     res = get_code_attestation(attestation_data, nonce);
@@ -507,14 +506,26 @@ static TEE_Result get_public_key(uint32_t param_types, TEE_Param params[4])
         TEE_PARAM_TYPE_NONE);
 
     TEE_Result res;
-    size_t public_key_sz;
-    uint8_t *public_key;
+    size_t public_key_sz; /* param[0].memref.size */
+    char *public_key = 0; /* param[0].memref.buffer */
+
+    uint8_t aux_public_key[RSA_PUBLIC_KEY_SIZE] = {0}; /* Auxiliary buffer for public key */
+    size_t aux_public_key_sz = sizeof(aux_public_key); /* Size of the auxiliary public key buffer */
 
     /* Safely get the invocation parameters */
     if (param_types != exp_param_types)
         return TEE_ERROR_BAD_PARAMETERS;
 
-    public_key_sz = params[0].memref.size;
+    /* Get the public key */
+    res = get_rsa_public_key(aux_public_key, &aux_public_key_sz);
+    if (res != TEE_SUCCESS)
+    {
+        EMSG("Failed to get public key, res=0x%08x", res);
+        goto exit;
+    }
+
+    /* Allocate memory for public key */
+    public_key_sz = aux_public_key_sz * 2 + 1;
     public_key = TEE_Malloc(public_key_sz, 0);
     if (!public_key)
     {
@@ -522,27 +533,18 @@ static TEE_Result get_public_key(uint32_t param_types, TEE_Param params[4])
         return TEE_ERROR_OUT_OF_MEMORY;
     }
 
-    /* Get the public key */
-    res = get_rsa_public_key(public_key, &public_key_sz);
-    if (res != TEE_SUCCESS)
-    {
-        EMSG("Failed to get public key, res=0x%08x", res);
-        goto exit;
-    }
-
-    /*
-     * Copy the correct size to the output parameter
-     * Each byte of the public key is represented by two hexadecimal characters,
-     */
-    params[0].memref.size = public_key_sz * 2;
-
     /* Convert public key to a hexadecimal string representation */
-    res = convert_to_hex_str(public_key, public_key_sz, params[0].memref.buffer, params[0].memref.size);
+    res = convert_to_hex_str(aux_public_key, aux_public_key_sz, public_key, public_key_sz - 1);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to convert public key to hex string, res=0x%08x", res);
         goto exit;
     }
+    public_key[public_key_sz - 1] = '\0';
+
+    /* Copy the public key to the output parameter */
+    TEE_MemMove(params[0].memref.buffer, public_key, public_key_sz);
+    params[0].memref.size = public_key_sz;
 
 exit:
     if (public_key)
