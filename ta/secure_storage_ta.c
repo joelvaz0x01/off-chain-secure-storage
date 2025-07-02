@@ -525,7 +525,7 @@ static TEE_Result get_public_key(uint32_t param_types, TEE_Param params[4])
     }
 
     /* Allocate memory for public key */
-    public_key_sz = aux_public_key_sz * 2 + 1;
+    public_key_sz = aux_public_key_sz * 2;
     public_key = TEE_Malloc(public_key_sz, 0);
     if (!public_key)
     {
@@ -534,13 +534,12 @@ static TEE_Result get_public_key(uint32_t param_types, TEE_Param params[4])
     }
 
     /* Convert public key to a hexadecimal string representation */
-    res = convert_to_hex_str(aux_public_key, aux_public_key_sz, public_key, public_key_sz - 1);
+    res = convert_to_hex_str(aux_public_key, aux_public_key_sz, public_key, public_key_sz);
     if (res != TEE_SUCCESS)
     {
         EMSG("Failed to convert public key to hex string, res=0x%08x", res);
         goto exit;
     }
-    public_key[public_key_sz - 1] = '\0';
 
     /* Copy the public key to the output parameter */
     TEE_MemMove(params[0].memref.buffer, public_key, public_key_sz);
