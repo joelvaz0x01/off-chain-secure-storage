@@ -19,7 +19,7 @@ The attestation mechanism produces a signed report that includes:
 
 The report contains:
 
-- The raw data (``TEE_UUID`` + ``counter`` + ``timestamp`` + ``nonce``),
+- The raw data (``UUID`` + ``counter`` + ``timestamp`` + ``nonce``),
 - A SHA-256 hash of raw data,
 - An RSA signature over the hash, proving the TA's identity and report integrity.
 
