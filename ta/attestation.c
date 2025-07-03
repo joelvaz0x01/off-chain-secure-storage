@@ -167,7 +167,6 @@ TEE_Result get_code_attestation(attestation_report_t *report_out, uint8_t nonce[
     }
 
     /* Sign the SHA256 hash of the report */
-
     res = TEE_AsymmetricSignDigest(
         sign_op,           /* operation */
         NULL, 0,           /* params, paramsCount */
