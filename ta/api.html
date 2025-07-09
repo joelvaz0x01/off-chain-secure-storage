@@ -1,0 +1,258 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API Documentation &mdash; Off-Chain Data Storage  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Hash Implementation" href="hash.html" />
+    <link rel="prev" title="Trusted Application (TA)" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Off-Chain Data Storage
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../host/index.html">Client Application (host)</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Trusted Application (TA)</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">API Documentation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#store-json-data">Store JSON Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#retrieve-json-data">Retrieve JSON Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#hash-json-data">Hash JSON Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#get-attestation">Get Attestation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#get-public-key">Get Public Key</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="hash.html">Hash Implementation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rsa/index.html">RSA Implementation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aes/index.html">AES Implementation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="monotonic_counter.html">Monotonic Counter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="attestation.html">Attestation Implementation</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Off-Chain Data Storage</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Trusted Application (TA)</a></li>
+      <li class="breadcrumb-item active">API Documentation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/ta/api.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="api-documentation">
+<span id="api"></span><h1>API Documentation<a class="headerlink" href="#api-documentation" title="Link to this heading"></a></h1>
+<p>This section documents the Trusted Application (TA) interface exposed through the TEE Client API. The TA provides five main commands for secure off-chain storage and attestation.</p>
+<p>—</p>
+<section id="store-json-data">
+<h2>Store JSON Data<a class="headerlink" href="#store-json-data" title="Link to this heading"></a></h2>
+<p><strong>Command ID:</strong> <code class="docutils literal notranslate"><span class="pre">TA_OFF_CHAIN_SECURE_STORAGE_STORE_JSON</span></code></p>
+<p><strong>Purpose:</strong>
+Securely store JSON data by encrypting it with AES and generating a SHA-256 hash for reference.</p>
+<p><strong>C Function Parameters:</strong></p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="cm">/**</span>
+<span class="linenos">2</span><span class="cm"> * Store JSON data in off-chain secure storage (persistent object)</span>
+<span class="linenos">3</span><span class="cm"> * @param param[0] (memref) IoT Device ID used the identify the persistent object</span>
+<span class="linenos">4</span><span class="cm"> * @param param[1] (memref) JSON data to be written in the persistent object</span>
+<span class="linenos">5</span><span class="cm"> * @param param[2] (memref) Buffer to store the SHA256 hash of the JSON data</span>
+<span class="linenos">6</span><span class="cm"> * @param param[3] unused</span>
+<span class="linenos">7</span><span class="cm"> */</span>
+<span class="linenos">8</span><span class="cp">#define TA_OFF_CHAIN_SECURE_STORAGE_STORE_JSON 0</span>
+</pre></div>
+</div>
+<p><strong>Operation Flow:</strong></p>
+<ol class="arabic simple">
+<li><p>Allocate secure memory</p></li>
+<li><p>Compute SHA-256 hash of input JSON data</p></li>
+<li><p>Encrypt data using AES-CTR mode with a randomly generated IV</p></li>
+<li><p>Store the encrypted payload in TEE persistent storage, keyed by the hash</p></li>
+<li><p>Return the hash to the client as a reference handle</p></li>
+</ol>
+<p>—</p>
+</section>
+<section id="retrieve-json-data">
+<h2>Retrieve JSON Data<a class="headerlink" href="#retrieve-json-data" title="Link to this heading"></a></h2>
+<p><strong>Command ID:</strong> <code class="docutils literal notranslate"><span class="pre">TA_OFF_CHAIN_SECURE_STORAGE_RETRIEVE_JSON</span></code></p>
+<p><strong>Purpose:</strong>
+Retrieve and decrypt previously stored JSON data using its SHA-256 hash as a lookup key.</p>
+<p><strong>C Function Parameters:</strong></p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="cm">/**</span>
+<span class="linenos">2</span><span class="cm"> * Retrieve JSON data from off-chain secure storage (persistent object)</span>
+<span class="linenos">3</span><span class="cm"> * @param param[0] (memref) JSON hash to retrieve JSON data</span>
+<span class="linenos">4</span><span class="cm"> * @param param[1] (memref) Buffer to store the JSON data</span>
+<span class="linenos">5</span><span class="cm"> * @param param[2] unused</span>
+<span class="linenos">6</span><span class="cm"> * @param param[3] unused</span>
+<span class="linenos">7</span><span class="cm"> */</span>
+<span class="linenos">8</span><span class="cp">#define TA_OFF_CHAIN_SECURE_STORAGE_RETRIEVE_JSON 1</span>
+</pre></div>
+</div>
+<p><strong>Operation Flow:</strong></p>
+<ol class="arabic simple">
+<li><p>Validate input hash and allocate secure buffers</p></li>
+<li><p>Locate and open the object in TEE persistent storage using the hash</p></li>
+<li><p>Read the encrypted data</p></li>
+<li><p>Decrypt using stored AES key and IV</p></li>
+<li><p>Return decrypted JSON data to client</p></li>
+</ol>
+<p><strong>Error Conditions:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">TEE_ERROR_ITEM_NOT_FOUND</span></code> — No object found for given hash</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">TEE_ERROR_SHORT_BUFFER</span></code> — Provided buffer size is insufficient</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">TEE_ERROR_OUT_OF_MEMORY</span></code> — Failed to allocate memory for operation</p></li>
+</ul>
+<p>—</p>
+</section>
+<section id="hash-json-data">
+<h2>Hash JSON Data<a class="headerlink" href="#hash-json-data" title="Link to this heading"></a></h2>
+<p><strong>Command ID:</strong> <code class="docutils literal notranslate"><span class="pre">TA_OFF_CHAIN_SECURE_STORAGE_HASH_JSON</span></code></p>
+<p><strong>Purpose:</strong>
+Generate a SHA-256 hash from JSON data without storing it.</p>
+<p><strong>C Function Parameters:</strong></p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="cm">/**</span>
+<span class="linenos">2</span><span class="cm"> * Get the SHA256 hash of a JSON data (persistent object)</span>
+<span class="linenos">3</span><span class="cm"> * @param param[0] (memref) JSON data to be hashed</span>
+<span class="linenos">4</span><span class="cm"> * @param param[1] (memref) Buffer to store the SHA256 hash of the JSON data</span>
+<span class="linenos">5</span><span class="cm"> * @param param[2] unused</span>
+<span class="linenos">6</span><span class="cm"> * @param param[3] unused</span>
+<span class="linenos">7</span><span class="cm"> */</span>
+<span class="linenos">8</span><span class="cp">#define TA_OFF_CHAIN_SECURE_STORAGE_HASH_JSON 2</span>
+</pre></div>
+</div>
+<p><strong>Use Cases:</strong></p>
+<ul class="simple">
+<li><p>Blockchain anchoring (e.g., for off-chain data proofs)</p></li>
+<li><p>Verifying data integrity before or after transmission</p></li>
+<li><p>Pre-hashing content for comparison or deduplication</p></li>
+</ul>
+<p>—</p>
+</section>
+<section id="get-attestation">
+<h2>Get Attestation<a class="headerlink" href="#get-attestation" title="Link to this heading"></a></h2>
+<p><strong>Command ID:</strong> <code class="docutils literal notranslate"><span class="pre">TA_OFF_CHAIN_SECURE_STORAGE_GET_ATTESTATION</span></code></p>
+<p><strong>Purpose:</strong>
+Generate a cryptographic signature that attests to the identity of the Trusted Application (TA).</p>
+<p><strong>C Function Parameters:</strong></p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="cm">/**</span>
+<span class="linenos">2</span><span class="cm"> * Get attestation of the TA</span>
+<span class="linenos">3</span><span class="cm"> * @param param[0] (memref) Nonce provided by the verifier (generated automatically on host side)</span>
+<span class="linenos">4</span><span class="cm"> * @param param[1] (memref) Buffer to store the attestation data</span>
+<span class="linenos">5</span><span class="cm"> * @param param[2] unused</span>
+<span class="linenos">6</span><span class="cm"> * @param param[3] unused</span>
+<span class="linenos">7</span><span class="cm"> */</span>
+<span class="linenos">8</span><span class="cp">#define TA_OFF_CHAIN_SECURE_STORAGE_GET_ATTESTATION 3</span>
+</pre></div>
+</div>
+<p><strong>Attestation Process:</strong></p>
+<ol class="arabic simple">
+<li><p>Compute SHA-256 hash of the TA’s UUID</p></li>
+<li><p>Sign the hash using an RSA-2048 private key with PSS (Probabilistic Signature Scheme) padding</p></li>
+<li><p>Return the digital signature to the client</p></li>
+</ol>
+<p>—</p>
+</section>
+<section id="get-public-key">
+<h2>Get Public Key<a class="headerlink" href="#get-public-key" title="Link to this heading"></a></h2>
+<p><strong>Command ID:</strong> <code class="docutils literal notranslate"><span class="pre">TA_OFF_CHAIN_SECURE_STORAGE_GET_PUBLIC_KEY</span></code></p>
+<p><strong>Purpose:</strong>
+Retrieve the RSA public key associated with the TA for verifying signatures.</p>
+<p><strong>C Function Parameters:</strong></p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="cm">/**</span>
+<span class="linenos">2</span><span class="cm"> * Get the public key of the TA</span>
+<span class="linenos">3</span><span class="cm"> * @param param[0] (memref) Buffer to store the public key</span>
+<span class="linenos">4</span><span class="cm"> * @param param[1] unused</span>
+<span class="linenos">5</span><span class="cm"> * @param param[2] unused</span>
+<span class="linenos">6</span><span class="cm"> * @param param[3] unused</span>
+<span class="linenos">7</span><span class="cm"> */</span>
+<span class="linenos">8</span><span class="cp">#define TA_OFF_CHAIN_SECURE_STORAGE_GET_PUBLIC_KEY 4</span>
+</pre></div>
+</div>
+<p><strong>Public Key Format:</strong></p>
+<p>The returned public key is encoded as a hexadecimal string in the following format:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="n">Public</span><span class="w"> </span><span class="n">key</span><span class="o">:</span><span class="w"> </span><span class="o">&lt;</span><span class="n">HEXADECIMAL</span><span class="w"> </span><span class="n">VALUE</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Trusted Application (TA)" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="hash.html" class="btn btn-neutral float-right" title="Hash Implementation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hugo Silva, Rúben Lopes, Joel Vaz.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,370 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monotonic Counter &mdash; Off-Chain Data Storage  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Attestation Implementation" href="attestation.html" />
+    <link rel="prev" title="Decryption using CTR Mode" href="aes/aes_decryption.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Off-Chain Data Storage
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../host/index.html">Client Application (host)</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Trusted Application (TA)</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="api.html">API Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hash.html">Hash Implementation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rsa/index.html">RSA Implementation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aes/index.html">AES Implementation</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Monotonic Counter</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#data-structures">Data Structures</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#loading-the-counter-state">Loading the Counter State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#saving-the-counter-state">Saving the Counter State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#updating-the-counter">Updating the Counter</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#retrieving-the-counter-value">Retrieving the Counter Value</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#retrieving-the-last-update-timestamp">Retrieving the Last Update Timestamp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#security-considerations">Security Considerations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="attestation.html">Attestation Implementation</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Off-Chain Data Storage</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Trusted Application (TA)</a></li>
+      <li class="breadcrumb-item active">Monotonic Counter</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/ta/monotonic_counter.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="monotonic-counter">
+<span id="id1"></span><h1>Monotonic Counter<a class="headerlink" href="#monotonic-counter" title="Link to this heading"></a></h1>
+<p>This section describes the implementation of a <strong>monotonic counter</strong> inside the Trusted Execution Environment (TEE).
+A monotonic counter is a counter that strictly increases over time and is used to prevent replay attacks, track state changes, or maintain an immutable sequence of events within secure applications.</p>
+<p>—</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>The monotonic counter is stored persistently inside the TEE to guarantee its integrity and non-repudiability.
+The implementation provides functions to:</p>
+<ul class="simple">
+<li><p>Load the counter state from persistent storage,</p></li>
+<li><p>Save the counter state to persistent storage,</p></li>
+<li><p>Update the counter value based on elapsed time,</p></li>
+<li><p>Retrieve the current counter value.</p></li>
+</ul>
+<p>—</p>
+</section>
+<section id="data-structures">
+<h2>Data Structures<a class="headerlink" href="#data-structures" title="Link to this heading"></a></h2>
+<p>The counter state is stored in a structure typically defined as:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint64_t</span><span class="w"> </span><span class="n">counter</span><span class="p">;</span><span class="w">          </span><span class="cm">/* Current counter value */</span>
+<span class="w">    </span><span class="n">TEE_Time</span><span class="w"> </span><span class="n">last_update</span><span class="p">;</span><span class="w">      </span><span class="cm">/* Timestamp of last update */</span>
+<span class="p">}</span><span class="w"> </span><span class="n">counter_state_t</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>—</p>
+</section>
+<section id="loading-the-counter-state">
+<h2>Loading the Counter State<a class="headerlink" href="#loading-the-counter-state" title="Link to this heading"></a></h2>
+<p>The function <code class="docutils literal notranslate"><span class="pre">load_counter()</span></code> is responsible for loading the counter’s state from persistent storage:</p>
+<ul class="simple">
+<li><p>It opens a persistent object identified by a predefined storage name.</p></li>
+<li><p>Reads the stored counter state into the provided structure.</p></li>
+<li><p>Returns an error if the counter is not initialized or if data corruption occurs.</p></li>
+</ul>
+<p>This ensures the counter state is preserved across reboots or power cycles.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="n">TEE_Result</span><span class="w"> </span><span class="nf">load_counter</span><span class="p">(</span><span class="n">counter_state_t</span><span class="w"> </span><span class="o">*</span><span class="n">state</span><span class="p">)</span>
+<span class="linenos"> 2</span><span class="p">{</span>
+<span class="linenos"> 3</span><span class="w">    </span><span class="n">TEE_ObjectHandle</span><span class="w"> </span><span class="n">object</span><span class="p">;</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="n">TEE_Result</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos"> 5</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">flag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_DATA_FLAG_ACCESS_READ</span><span class="p">;</span><span class="w"> </span><span class="cm">/* we can read the object */</span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">read_bytes</span><span class="p">;</span>
+<span class="linenos"> 8</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="cm">/* Open the persistent object where the counter state is stored */</span>
+<span class="linenos">10</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_OpenPersistentObject</span><span class="p">(</span>
+<span class="linenos">11</span><span class="w">        </span><span class="n">TEE_STORAGE_PRIVATE</span><span class="p">,</span><span class="w">          </span><span class="cm">/* storageID */</span>
+<span class="linenos">12</span><span class="w">        </span><span class="n">COUNTER_STORAGE_NAME</span><span class="p">,</span><span class="w">         </span><span class="cm">/* objectID */</span>
+<span class="linenos">13</span><span class="w">        </span><span class="n">strlen</span><span class="p">(</span><span class="n">COUNTER_STORAGE_NAME</span><span class="p">),</span><span class="w"> </span><span class="cm">/* objectIDLen */</span>
+<span class="linenos">14</span><span class="w">        </span><span class="n">flag</span><span class="p">,</span><span class="w">                         </span><span class="cm">/* flags */</span>
+<span class="linenos">15</span><span class="w">        </span><span class="o">&amp;</span><span class="n">object</span><span class="w">                       </span><span class="cm">/* object */</span>
+<span class="linenos">16</span><span class="w">    </span><span class="p">);</span>
+<span class="linenos">17</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos">18</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos">19</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Counter not initialized or failed to open persistent object, res=0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos">20</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos">21</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">22</span>
+<span class="linenos">23</span><span class="w">    </span><span class="cm">/* Read the counter state from the object */</span>
+<span class="linenos">24</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_ReadObjectData</span><span class="p">(</span><span class="n">object</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="o">*</span><span class="n">state</span><span class="p">),</span><span class="w"> </span><span class="o">&amp;</span><span class="n">read_bytes</span><span class="p">);</span>
+<span class="linenos">25</span><span class="w">    </span><span class="n">TEE_CloseObject</span><span class="p">(</span><span class="n">object</span><span class="p">);</span>
+<span class="linenos">26</span>
+<span class="linenos">27</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">read_bytes</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="o">*</span><span class="n">state</span><span class="p">))</span>
+<span class="linenos">28</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos">29</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;TEE_ReadObjectData failed 0x%08x, read %u over %zu&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">,</span><span class="w"> </span><span class="n">read_bytes</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="o">*</span><span class="n">state</span><span class="p">));</span>
+<span class="linenos">30</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">TEE_ERROR_CORRUPT_OBJECT</span><span class="p">;</span>
+<span class="linenos">31</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">32</span>
+<span class="linenos">33</span><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">;</span>
+<span class="linenos">34</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>—</p>
+</section>
+<section id="saving-the-counter-state">
+<h2>Saving the Counter State<a class="headerlink" href="#saving-the-counter-state" title="Link to this heading"></a></h2>
+<p>The function <code class="docutils literal notranslate"><span class="pre">save_counter()</span></code> saves the current counter state:</p>
+<ul class="simple">
+<li><p>Creates or overwrites the persistent storage object for the counter.</p></li>
+<li><p>Writes the provided counter state structure into persistent storage.</p></li>
+<li><p>Closes the object handle after successful write.</p></li>
+</ul>
+<p>This operation guarantees the updated counter value is securely stored.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="n">TEE_Result</span><span class="w"> </span><span class="nf">save_counter</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">counter_state_t</span><span class="w"> </span><span class="o">*</span><span class="n">state</span><span class="p">)</span>
+<span class="linenos"> 2</span><span class="p">{</span>
+<span class="linenos"> 3</span><span class="w">    </span><span class="n">TEE_ObjectHandle</span><span class="w"> </span><span class="n">object</span><span class="p">;</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="n">TEE_Result</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos"> 5</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">flag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_DATA_FLAG_OVERWRITE</span><span class="p">;</span><span class="w"> </span><span class="cm">/* we can overwrite the object */</span>
+<span class="linenos"> 7</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="cm">/* Create or open the persistent object where the counter state will be stored */</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_CreatePersistentObject</span><span class="p">(</span>
+<span class="linenos">10</span><span class="w">        </span><span class="n">TEE_STORAGE_PRIVATE</span><span class="p">,</span><span class="w">          </span><span class="cm">/* storageID */</span>
+<span class="linenos">11</span><span class="w">        </span><span class="n">COUNTER_STORAGE_NAME</span><span class="p">,</span><span class="w">         </span><span class="cm">/* objectID */</span>
+<span class="linenos">12</span><span class="w">        </span><span class="n">strlen</span><span class="p">(</span><span class="n">COUNTER_STORAGE_NAME</span><span class="p">),</span><span class="w"> </span><span class="cm">/* objectIDLen */</span>
+<span class="linenos">13</span><span class="w">        </span><span class="n">flag</span><span class="p">,</span><span class="w">                         </span><span class="cm">/* flags */</span>
+<span class="linenos">14</span><span class="w">        </span><span class="n">TEE_HANDLE_NULL</span><span class="p">,</span><span class="w">              </span><span class="cm">/* attributes */</span>
+<span class="linenos">15</span><span class="w">        </span><span class="n">state</span><span class="p">,</span><span class="w">                        </span><span class="cm">/* initialData */</span>
+<span class="linenos">16</span><span class="w">        </span><span class="k">sizeof</span><span class="p">(</span><span class="o">*</span><span class="n">state</span><span class="p">),</span><span class="w">               </span><span class="cm">/* initialDataLen */</span>
+<span class="linenos">17</span><span class="w">        </span><span class="o">&amp;</span><span class="n">object</span><span class="w">                       </span><span class="cm">/* object */</span>
+<span class="linenos">18</span><span class="w">    </span><span class="p">);</span>
+<span class="linenos">19</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos">20</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos">21</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to create persistent object, res=0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos">22</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos">23</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">24</span>
+<span class="linenos">25</span><span class="w">    </span><span class="n">TEE_CloseObject</span><span class="p">(</span><span class="n">object</span><span class="p">);</span>
+<span class="linenos">26</span><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">;</span>
+<span class="linenos">27</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>—</p>
+</section>
+<section id="updating-the-counter">
+<h2>Updating the Counter<a class="headerlink" href="#updating-the-counter" title="Link to this heading"></a></h2>
+<p>The function <code class="docutils literal notranslate"><span class="pre">update_counter()</span></code> performs the logic of advancing the monotonic counter:</p>
+<ol class="arabic simple">
+<li><p>It attempts to load the existing counter state.
+- If the counter is uninitialized, it initializes it to zero and sets the last update timestamp to the current system time.</p></li>
+<li><p>It obtains the current system time and calculates the elapsed time since the last update.</p></li>
+<li><p>If time has passed, it increments the counter (in this implementation by a fixed increment of 1 per update call).
+- This could be modified to include a random factor or other logic if desired.</p></li>
+<li><p>Updates the last update timestamp to the current time.</p></li>
+<li><p>Saves the new state persistently.</p></li>
+</ol>
+<p>By tracking elapsed time and increasing the counter accordingly, this function ensures the counter strictly increases with time.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="n">TEE_Result</span><span class="w"> </span><span class="nf">update_counter</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="linenos"> 2</span><span class="p">{</span>
+<span class="linenos"> 3</span><span class="w">    </span><span class="n">TEE_Result</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="n">TEE_Time</span><span class="w"> </span><span class="n">now</span><span class="p">;</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="n">counter_state_t</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">};</span>
+<span class="linenos"> 6</span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="cm">/*</span>
+<span class="linenos"> 8</span><span class="cm">     * Load the current counter state</span>
+<span class="linenos"> 9</span><span class="cm">     * If the counter is not initialized, it will be set</span>
+<span class="linenos">10</span><span class="cm">     */</span>
+<span class="linenos">11</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">load_counter</span><span class="p">(</span><span class="o">&amp;</span><span class="n">state</span><span class="p">);</span>
+<span class="linenos">12</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos">13</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos">14</span><span class="w">        </span><span class="n">TEE_GetSystemTime</span><span class="p">(</span><span class="o">&amp;</span><span class="n">now</span><span class="p">);</span>
+<span class="linenos">15</span><span class="w">        </span><span class="n">state</span><span class="p">.</span><span class="n">counter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="linenos">16</span><span class="w">        </span><span class="n">state</span><span class="p">.</span><span class="n">last_update</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">now</span><span class="p">;</span>
+<span class="linenos">17</span><span class="w">        </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">save_counter</span><span class="p">(</span><span class="o">&amp;</span><span class="n">state</span><span class="p">);</span>
+<span class="linenos">18</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos">19</span><span class="w">        </span><span class="p">{</span>
+<span class="linenos">20</span><span class="w">            </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to initialize counter state, res=0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos">21</span><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos">22</span><span class="w">        </span><span class="p">}</span>
+<span class="linenos">23</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">24</span>
+<span class="linenos">25</span><span class="w">    </span><span class="cm">/* Get the current time */</span>
+<span class="linenos">26</span><span class="w">    </span><span class="n">TEE_GetSystemTime</span><span class="p">(</span><span class="o">&amp;</span><span class="n">now</span><span class="p">);</span>
+<span class="linenos">27</span>
+<span class="linenos">28</span><span class="w">    </span><span class="cm">/*</span>
+<span class="linenos">29</span><span class="cm">     * Compute elapsed time since last update</span>
+<span class="linenos">30</span><span class="cm">     * If no time has passed, return the current counter value</span>
+<span class="linenos">31</span><span class="cm">     */</span>
+<span class="linenos">32</span><span class="w">    </span><span class="kt">uint64_t</span><span class="w"> </span><span class="n">elapsed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">now</span><span class="p">.</span><span class="n">seconds</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">state</span><span class="p">.</span><span class="n">last_update</span><span class="p">.</span><span class="n">seconds</span><span class="p">;</span>
+<span class="linenos">33</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">elapsed</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="linenos">34</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">;</span>
+<span class="linenos">35</span>
+<span class="linenos">36</span><span class="w">    </span><span class="cm">/*</span>
+<span class="linenos">37</span><span class="cm">     * Update counter by multiplying elapsed time with a random factor</span>
+<span class="linenos">38</span><span class="cm">     * By doing that, the counter will increase at a variable rate</span>
+<span class="linenos">39</span><span class="cm">     */</span>
+<span class="linenos">40</span><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">counter</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="linenos">41</span><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">last_update</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">now</span><span class="p">;</span>
+<span class="linenos">42</span>
+<span class="linenos">43</span><span class="w">    </span><span class="cm">/* Save the updated state */</span>
+<span class="linenos">44</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">save_counter</span><span class="p">(</span><span class="o">&amp;</span><span class="n">state</span><span class="p">);</span>
+<span class="linenos">45</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos">46</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos">47</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to save counter state, res=0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos">48</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos">49</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">50</span>
+<span class="linenos">51</span><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">;</span>
+<span class="linenos">52</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>—</p>
+</section>
+<section id="retrieving-the-counter-value">
+<h2>Retrieving the Counter Value<a class="headerlink" href="#retrieving-the-counter-value" title="Link to this heading"></a></h2>
+<p>The function <code class="docutils literal notranslate"><span class="pre">get_counter()</span></code> simply loads the current counter state and returns the counter value to the caller.
+This provides a reliable and consistent way to query the monotonic counter.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="n">TEE_Result</span><span class="w"> </span><span class="nf">get_counter</span><span class="p">(</span><span class="kt">uint64_t</span><span class="w"> </span><span class="o">*</span><span class="n">counter_value</span><span class="p">)</span>
+<span class="linenos"> 2</span><span class="p">{</span>
+<span class="linenos"> 3</span><span class="w">    </span><span class="n">TEE_Result</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="n">counter_state_t</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">};</span>
+<span class="linenos"> 5</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="cm">/* Load the current counter state */</span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">load_counter</span><span class="p">(</span><span class="o">&amp;</span><span class="n">state</span><span class="p">);</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos">10</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to load counter state, res=0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos">11</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos">12</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">13</span>
+<span class="linenos">14</span><span class="w">    </span><span class="cm">/* Get the current counter value */</span>
+<span class="linenos">15</span><span class="w">    </span><span class="o">*</span><span class="n">counter_value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">state</span><span class="p">.</span><span class="n">counter</span><span class="p">;</span>
+<span class="linenos">16</span><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">;</span>
+<span class="linenos">17</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>—</p>
+</section>
+<section id="retrieving-the-last-update-timestamp">
+<h2>Retrieving the Last Update Timestamp<a class="headerlink" href="#retrieving-the-last-update-timestamp" title="Link to this heading"></a></h2>
+<p>The function <code class="docutils literal notranslate"><span class="pre">get_last_update_time()</span></code> retrieves the timestamp of the last counter update.
+This will be used when doing the attestation to ensure the counter is not only increasing but also reflects the time of the last update.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="n">TEE_Result</span><span class="w"> </span><span class="nf">get_counter_timestamp</span><span class="p">(</span><span class="n">TEE_Time</span><span class="w"> </span><span class="o">*</span><span class="n">timestamp</span><span class="p">)</span>
+<span class="linenos"> 2</span><span class="p">{</span>
+<span class="linenos"> 3</span><span class="w">    </span><span class="n">TEE_Result</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="n">counter_state_t</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">};</span>
+<span class="linenos"> 5</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="cm">/* Load the current counter state */</span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">load_counter</span><span class="p">(</span><span class="o">&amp;</span><span class="n">state</span><span class="p">);</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos">10</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to load counter state, res=0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos">11</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos">12</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">13</span>
+<span class="linenos">14</span><span class="w">    </span><span class="cm">/* Get the last update timestamp */</span>
+<span class="linenos">15</span><span class="w">    </span><span class="o">*</span><span class="n">timestamp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">state</span><span class="p">.</span><span class="n">last_update</span><span class="p">;</span>
+<span class="linenos">16</span><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">;</span>
+<span class="linenos">17</span><span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="security-considerations">
+<h2>Security Considerations<a class="headerlink" href="#security-considerations" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>The counter cannot decrease, protecting against rollback attacks.</p></li>
+<li><p>Use of the TEE persistent storage API ensures counter state confidentiality and integrity.</p></li>
+<li><p>The counter update logic relies on secure system time provided by the TEE.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="aes/aes_decryption.html" class="btn btn-neutral float-left" title="Decryption using CTR Mode" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="attestation.html" class="btn btn-neutral float-right" title="Attestation Implementation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hugo Silva, Rúben Lopes, Joel Vaz.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

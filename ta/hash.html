@@ -1,0 +1,218 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hash Implementation &mdash; Off-Chain Data Storage  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="RSA Implementation" href="rsa/index.html" />
+    <link rel="prev" title="API Documentation" href="api.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Off-Chain Data Storage
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../host/index.html">Client Application (host)</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Trusted Application (TA)</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="api.html">API Documentation</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Hash Implementation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#constant-definition">Constant Definition</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#implementation">Implementation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#implementation-breakdown">Implementation Breakdown</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="rsa/index.html">RSA Implementation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aes/index.html">AES Implementation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="monotonic_counter.html">Monotonic Counter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="attestation.html">Attestation Implementation</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Off-Chain Data Storage</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Trusted Application (TA)</a></li>
+      <li class="breadcrumb-item active">Hash Implementation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/ta/hash.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="hash-implementation">
+<span id="hash"></span><h1>Hash Implementation<a class="headerlink" href="#hash-implementation" title="Link to this heading"></a></h1>
+<p>This section describes how SHA-256 hashing is implemented within the <strong>Trusted Execution Environment (TEE)</strong>.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>SHA-256 is a cryptographic hash function that transforms input data of arbitrary size into a fixed 256-bit (32-bytes) digest. It plays a vital role in maintaining:</p>
+<ul class="simple">
+<li><p><strong>Data Integrity</strong> — Detects unintentional or malicious changes.</p></li>
+<li><p><strong>Authenticity</strong> — Verifies the source of data.</p></li>
+<li><p><strong>Non-repudiation</strong> — Ensures evidence of data origin in secure systems.</p></li>
+</ul>
+<p>Within the TEE, SHA-256 is executed in a confined and trusted environment to ensure the confidentiality and reliability of cryptographic processes.</p>
+</section>
+<section id="constant-definition">
+<h2>Constant Definition<a class="headerlink" href="#constant-definition" title="Link to this heading"></a></h2>
+<p>The following macro defines the size of a SHA-256 hash output:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp">#define SHA256_HASH_SIZE 32  </span><span class="c1">// SHA-256 produces 32-bytes (256-bits) digests</span>
+</pre></div>
+</div>
+</section>
+<section id="implementation">
+<h2>Implementation<a class="headerlink" href="#implementation" title="Link to this heading"></a></h2>
+<p>The SHA-256 functionality is encapsulated in the <code class="docutils literal notranslate"><span class="pre">compute_sha256()</span></code> function, which computes the hash of a given buffer within the TEE.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="n">TEE_Result</span><span class="w"> </span><span class="nf">compute_sha256</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">data_sz</span><span class="p">,</span><span class="w"> </span><span class="kt">uint8_t</span><span class="w"> </span><span class="o">*</span><span class="n">hash_output</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="o">*</span><span class="n">hash_output_sz</span><span class="p">)</span>
+<span class="linenos"> 2</span><span class="p">{</span>
+<span class="linenos"> 3</span><span class="w">    </span><span class="n">TEE_Result</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="n">TEE_OperationHandle</span><span class="w"> </span><span class="n">op</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_HANDLE_NULL</span><span class="p">;</span>
+<span class="linenos"> 5</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="cm">/* Check if the output buffer is large enough */</span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">hash_output_sz</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">HASH_SIZE</span><span class="p">)</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos"> 9</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Output buffer is too small, expected size: %u bytes&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">HASH_SIZE</span><span class="p">);</span>
+<span class="linenos">10</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">TEE_ERROR_SHORT_BUFFER</span><span class="p">;</span>
+<span class="linenos">11</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">12</span>
+<span class="linenos">13</span><span class="w">    </span><span class="cm">/* Allocate operation for SHA256 */</span>
+<span class="linenos">14</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_AllocateOperation</span><span class="p">(</span><span class="o">&amp;</span><span class="n">op</span><span class="p">,</span><span class="w"> </span><span class="n">TEE_ALG_SHA256</span><span class="p">,</span><span class="w"> </span><span class="n">TEE_MODE_DIGEST</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="linenos">15</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos">16</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos">17</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to allocate operation, res=0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos">18</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos">19</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">20</span>
+<span class="linenos">21</span><span class="w">    </span><span class="cm">/* Initialize the digest operation */</span>
+<span class="linenos">22</span><span class="w">    </span><span class="n">TEE_DigestUpdate</span><span class="p">(</span><span class="n">op</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">data_sz</span><span class="p">);</span>
+<span class="linenos">23</span>
+<span class="linenos">24</span><span class="w">    </span><span class="cm">/* Finalize the digest and get the output */</span>
+<span class="linenos">25</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_DigestDoFinal</span><span class="p">(</span><span class="n">op</span><span class="p">,</span><span class="w"> </span><span class="nb">NULL</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">hash_output</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">hash_output_sz</span><span class="p">);</span>
+<span class="linenos">26</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos">27</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos">28</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to finalize digest, res=0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos">29</span><span class="w">        </span><span class="k">goto</span><span class="w"> </span><span class="n">exit</span><span class="p">;</span>
+<span class="linenos">30</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">31</span>
+<span class="linenos">32</span><span class="nl">exit</span><span class="p">:</span>
+<span class="linenos">33</span><span class="w">    </span><span class="n">TEE_FreeOperation</span><span class="p">(</span><span class="n">op</span><span class="p">);</span>
+<span class="linenos">34</span><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos">35</span><span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Function Parameters:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">data</span></code>: Pointer to the input buffer.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">data_sz</span></code>: Size of the input data in bytes.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hash_output</span></code>: Pointer to the buffer where the resulting hash will be stored.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hash_output_sz</span></code>: Pointer to a variable holding the size of <code class="docutils literal notranslate"><span class="pre">hash_output</span></code>; updated with the actual hash size (32 bytes) on success.</p></li>
+</ul>
+<p><strong>Return Value:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">TEE_SUCCESS</span></code> on successful computation.</p></li>
+<li><p>Relevant error codes such as <code class="docutils literal notranslate"><span class="pre">TEE_ERROR_SHORT_BUFFER</span></code> if the output buffer is too small.</p></li>
+</ul>
+</section>
+<section id="implementation-breakdown">
+<h2>Implementation Breakdown<a class="headerlink" href="#implementation-breakdown" title="Link to this heading"></a></h2>
+<ol class="arabic">
+<li><p><strong>Buffer Size Validation</strong></p>
+<p>The function first checks whether <code class="docutils literal notranslate"><span class="pre">hash_output</span></code> is large enough to hold a 32-bytes SHA-256 digest. If not, it exits with <code class="docutils literal notranslate"><span class="pre">TEE_ERROR_SHORT_BUFFER</span></code>.</p>
+</li>
+<li><p><strong>Operation Allocation</strong></p>
+<p>A cryptographic operation handle is allocated for SHA-256 using <code class="docutils literal notranslate"><span class="pre">TEE_AllocateOperation()</span></code>, configured in digest mode.</p>
+</li>
+<li><p><strong>Digest Computation</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">TEE_DigestUpdate()</span></code> is used to feed the input data into the hashing engine.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">TEE_DigestDoFinal()</span></code> finalizes the computation and outputs the hash.</p></li>
+</ul>
+</li>
+<li><p><strong>Resource Cleanup</strong></p>
+<p>Regardless of success or failure, the function frees the operation handle via <code class="docutils literal notranslate"><span class="pre">TEE_FreeOperation()</span></code> to release all associated secure resources.</p>
+</li>
+</ol>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="api.html" class="btn btn-neutral float-left" title="API Documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="rsa/index.html" class="btn btn-neutral float-right" title="RSA Implementation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hugo Silva, Rúben Lopes, Joel Vaz.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

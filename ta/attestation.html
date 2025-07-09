@@ -1,0 +1,409 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attestation Implementation &mdash; Off-Chain Data Storage  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Monotonic Counter" href="monotonic_counter.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Off-Chain Data Storage
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../host/index.html">Client Application (host)</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Trusted Application (TA)</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="api.html">API Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hash.html">Hash Implementation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rsa/index.html">RSA Implementation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aes/index.html">AES Implementation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="monotonic_counter.html">Monotonic Counter</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Attestation Implementation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#implementation">Implementation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#step-by-step-implementation-details">Step-by-step Implementation Details</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#security-considerations">Security Considerations</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Off-Chain Data Storage</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Trusted Application (TA)</a></li>
+      <li class="breadcrumb-item active">Attestation Implementation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/ta/attestation.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="attestation-implementation">
+<span id="attestation"></span><h1>Attestation Implementation<a class="headerlink" href="#attestation-implementation" title="Link to this heading"></a></h1>
+<p>This section details the implementation of the <strong>attestation report generation</strong> process inside the Trusted Execution Environment (TEE). Attestation is a critical security function that enables a remote verifier to confirm the integrity and authenticity of the Trusted Application (TA) by verifying cryptographic evidence about its code and state.</p>
+<p>—</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>The attestation mechanism produces a signed report that includes:</p>
+<ul class="simple">
+<li><p>The <strong>Trusted Application UUID</strong> (universally unique identifier),</p></li>
+<li><p>A <strong>monotonic counter</strong> value to prevent replay attacks,</p></li>
+<li><p>The last counter incremented <strong>timestamp</strong>,</p></li>
+<li><p>A <strong>nonce</strong> (number used once) provided by the verifier to ensure freshness.</p></li>
+</ul>
+<p>The report contains:</p>
+<ul class="simple">
+<li><p>The raw data (<code class="docutils literal notranslate"><span class="pre">UUID</span></code> + <code class="docutils literal notranslate"><span class="pre">counter</span></code> + <code class="docutils literal notranslate"><span class="pre">timestamp</span></code> + <code class="docutils literal notranslate"><span class="pre">nonce</span></code>),</p></li>
+<li><p>A SHA-256 hash of raw data,</p></li>
+<li><p>An RSA signature over the hash, proving the TA’s identity and report integrity.</p></li>
+</ul>
+<p>—</p>
+</section>
+<section id="implementation">
+<h2>Implementation<a class="headerlink" href="#implementation" title="Link to this heading"></a></h2>
+<p>The attestation report generation is implemented in the function <code class="docutils literal notranslate"><span class="pre">generate_attestation_report()</span></code>.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="linenos">  1</span><span class="n">TEE_Result</span><span class="w"> </span><span class="nf">get_code_attestation</span><span class="p">(</span><span class="n">attestation_report_t</span><span class="w"> </span><span class="o">*</span><span class="n">report_out</span><span class="p">,</span><span class="w"> </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">nonce</span><span class="p">[</span><span class="n">NONCE_SIZE</span><span class="p">])</span>
+<span class="linenos">  2</span><span class="p">{</span>
+<span class="linenos">  3</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">nonce</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">!</span><span class="n">report_out</span><span class="p">)</span>
+<span class="linenos">  4</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">TEE_ERROR_BAD_PARAMETERS</span><span class="p">;</span>
+<span class="linenos">  5</span>
+<span class="linenos">  6</span><span class="w">    </span><span class="n">TEE_Result</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos">  7</span><span class="w">    </span><span class="n">TEE_ObjectHandle</span><span class="w"> </span><span class="n">key_handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_HANDLE_NULL</span><span class="p">;</span>
+<span class="linenos">  8</span><span class="w">    </span><span class="n">TEE_OperationHandle</span><span class="w"> </span><span class="n">sign_op</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_HANDLE_NULL</span><span class="p">;</span>
+<span class="linenos">  9</span><span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">uuid</span><span class="p">[</span><span class="n">UUID_SIZE</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">};</span>
+<span class="linenos"> 10</span><span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">flags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_DATA_FLAG_ACCESS_READ</span><span class="p">;</span>
+<span class="linenos"> 11</span><span class="w">    </span><span class="kt">uint64_t</span><span class="w"> </span><span class="n">counter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="linenos"> 12</span>
+<span class="linenos"> 13</span><span class="w">    </span><span class="cm">/* Auxiliary buffers for hash and signature */</span>
+<span class="linenos"> 14</span><span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">aux_hash</span><span class="p">[</span><span class="n">HASH_SIZE</span><span class="p">];</span>
+<span class="linenos"> 15</span><span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="n">aux_hash_len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">aux_hash</span><span class="p">);</span>
+<span class="linenos"> 16</span>
+<span class="linenos"> 17</span><span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">aux_signature</span><span class="p">[</span><span class="n">RSA_SIGNATURE_SIZE</span><span class="p">];</span>
+<span class="linenos"> 18</span><span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">aux_signature_len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">aux_signature</span><span class="p">);</span>
+<span class="linenos"> 19</span>
+<span class="linenos"> 20</span><span class="w">    </span><span class="cm">/* Get the TA UUID */</span>
+<span class="linenos"> 21</span><span class="w">    </span><span class="n">TEE_UUID</span><span class="w"> </span><span class="n">ta_uuid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TA_OFF_CHAIN_SECURE_STORAGE_UUID</span><span class="p">;</span>
+<span class="linenos"> 22</span>
+<span class="linenos"> 23</span><span class="w">    </span><span class="cm">/* Last counter timestamp */</span>
+<span class="linenos"> 24</span><span class="w">    </span><span class="n">TEE_Time</span><span class="w"> </span><span class="n">timestamp</span><span class="p">;</span>
+<span class="linenos"> 25</span>
+<span class="linenos"> 26</span><span class="w">    </span><span class="cm">/* Buffer for nonce hexadecimal representation */</span>
+<span class="linenos"> 27</span><span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">nonce_hex_str</span><span class="p">[</span><span class="n">NONCE_SIZE_HEX</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">};</span>
+<span class="linenos"> 28</span><span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="n">nonce_hex_str_len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">nonce_hex_str</span><span class="p">);</span>
+<span class="linenos"> 29</span>
+<span class="linenos"> 30</span><span class="w">    </span><span class="cm">/* Buffer for attestation report hash */</span>
+<span class="linenos"> 31</span><span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">hash_output</span><span class="p">[</span><span class="n">HASH_SIZE_HEX</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">};</span>
+<span class="linenos"> 32</span><span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="n">hash_output_sz</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">hash_output</span><span class="p">);</span>
+<span class="linenos"> 33</span>
+<span class="linenos"> 34</span><span class="w">    </span><span class="cm">/* Buffer for data to hash */</span>
+<span class="linenos"> 35</span><span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">data_to_hash</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span>
+<span class="linenos"> 36</span><span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="n">data_to_hash_sz</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="cm">/* +1 for null terminator */</span>
+<span class="linenos"> 37</span>
+<span class="linenos"> 38</span><span class="w">    </span><span class="cm">/* Buffer for RSA signature */</span>
+<span class="linenos"> 39</span><span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">signature_output</span><span class="p">[</span><span class="n">RSA_SIGNATURE_SIZE_HEX</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">};</span>
+<span class="linenos"> 40</span><span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="n">signature_output_sz</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">signature_output</span><span class="p">);</span>
+<span class="linenos"> 41</span>
+<span class="linenos"> 42</span><span class="w">    </span><span class="cm">/* Get current counter value */</span>
+<span class="linenos"> 43</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_counter</span><span class="p">(</span><span class="o">&amp;</span><span class="n">counter</span><span class="p">);</span>
+<span class="linenos"> 44</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos"> 45</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos"> 46</span>
+<span class="linenos"> 47</span><span class="w">    </span><span class="cm">/* Get the TA UUID */</span>
+<span class="linenos"> 48</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">uuid_to_str</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span><span class="w"> </span><span class="n">ta_uuid</span><span class="p">);</span>
+<span class="linenos"> 49</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos"> 50</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos"> 51</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to get TA UUID, res=0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos"> 52</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos"> 53</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos"> 54</span>
+<span class="linenos"> 55</span><span class="w">    </span><span class="cm">/* Convert nonce to a hexadecimal string representation */</span>
+<span class="linenos"> 56</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">convert_to_hex_str</span><span class="p">(</span><span class="n">nonce</span><span class="p">,</span><span class="w"> </span><span class="n">NONCE_SIZE</span><span class="p">,</span><span class="w"> </span><span class="n">nonce_hex_str</span><span class="p">,</span><span class="w"> </span><span class="n">nonce_hex_str_len</span><span class="p">);</span>
+<span class="linenos"> 57</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos"> 58</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos"> 59</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to convert nonce to hex string, res=0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos"> 60</span><span class="w">        </span><span class="k">goto</span><span class="w"> </span><span class="n">exit</span><span class="p">;</span>
+<span class="linenos"> 61</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos"> 62</span>
+<span class="linenos"> 63</span><span class="w">    </span><span class="cm">/* Get the last counter timestamp (uint32_t) */</span>
+<span class="linenos"> 64</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_counter_timestamp</span><span class="p">(</span><span class="o">&amp;</span><span class="n">timestamp</span><span class="p">);</span>
+<span class="linenos"> 65</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos"> 66</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos"> 67</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to get counter timestamp, res=0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos"> 68</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos"> 69</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos"> 70</span>
+<span class="linenos"> 71</span><span class="w">    </span><span class="cm">/* Prepare data to hash */</span>
+<span class="linenos"> 72</span><span class="w">    </span><span class="n">data_to_hash_sz</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">snprintf</span><span class="p">(</span>
+<span class="linenos"> 73</span><span class="w">        </span><span class="nb">NULL</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">                                                        </span><span class="cm">/* buffer, buffer_len */</span>
+<span class="linenos"> 74</span><span class="w">        </span><span class="s">&quot;{uuid:%s,counter:%&quot;</span><span class="w"> </span><span class="n">PRIu64</span><span class="w"> </span><span class="s">&quot;,timestamp:%&quot;</span><span class="w"> </span><span class="n">PRIu32</span><span class="w"> </span><span class="s">&quot;,nonce:%s}&quot;</span><span class="p">,</span><span class="w"> </span><span class="cm">/* format string */</span>
+<span class="linenos"> 75</span><span class="w">        </span><span class="n">uuid</span><span class="p">,</span><span class="w"> </span><span class="n">counter</span><span class="p">,</span><span class="w"> </span><span class="n">timestamp</span><span class="p">.</span><span class="n">seconds</span><span class="p">,</span><span class="w"> </span><span class="n">nonce_hex_str</span><span class="w">                 </span><span class="cm">/* data_to_hash */</span>
+<span class="linenos"> 76</span><span class="w">    </span><span class="p">);</span>
+<span class="linenos"> 77</span>
+<span class="linenos"> 78</span><span class="w">    </span><span class="n">data_to_hash</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_Malloc</span><span class="p">(</span><span class="n">data_to_hash_sz</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="linenos"> 79</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">data_to_hash</span><span class="p">)</span>
+<span class="linenos"> 80</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos"> 81</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to allocate memory for data to hash&quot;</span><span class="p">);</span>
+<span class="linenos"> 82</span><span class="w">        </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_ERROR_OUT_OF_MEMORY</span><span class="p">;</span>
+<span class="linenos"> 83</span><span class="w">        </span><span class="k">goto</span><span class="w"> </span><span class="n">exit</span><span class="p">;</span>
+<span class="linenos"> 84</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos"> 85</span>
+<span class="linenos"> 86</span><span class="w">    </span><span class="cm">/* Fill the data to hash buffer */</span>
+<span class="linenos"> 87</span><span class="w">    </span><span class="n">snprintf</span><span class="p">(</span>
+<span class="linenos"> 88</span><span class="w">        </span><span class="n">data_to_hash</span><span class="p">,</span><span class="w"> </span><span class="n">data_to_hash_sz</span><span class="p">,</span><span class="w">                                  </span><span class="cm">/* buffer, buffer_len */</span>
+<span class="linenos"> 89</span><span class="w">        </span><span class="s">&quot;{uuid:%s,counter:%&quot;</span><span class="w"> </span><span class="n">PRIu64</span><span class="w"> </span><span class="s">&quot;,timestamp:%&quot;</span><span class="w"> </span><span class="n">PRIu32</span><span class="w"> </span><span class="s">&quot;,nonce:%s}&quot;</span><span class="p">,</span><span class="w"> </span><span class="cm">/* format string */</span>
+<span class="linenos"> 90</span><span class="w">        </span><span class="n">uuid</span><span class="p">,</span><span class="w"> </span><span class="n">counter</span><span class="p">,</span><span class="w"> </span><span class="n">timestamp</span><span class="p">.</span><span class="n">seconds</span><span class="p">,</span><span class="w"> </span><span class="n">nonce_hex_str</span><span class="w">                 </span><span class="cm">/* data_to_hash */</span>
+<span class="linenos"> 91</span><span class="w">    </span><span class="p">);</span>
+<span class="linenos"> 92</span>
+<span class="linenos"> 93</span><span class="w">    </span><span class="cm">/* Compute SHA256 hash of the data */</span>
+<span class="linenos"> 94</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">compute_sha256</span><span class="p">(</span><span class="n">data_to_hash</span><span class="p">,</span><span class="w"> </span><span class="n">data_to_hash_sz</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">aux_hash</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">aux_hash_len</span><span class="p">);</span>
+<span class="linenos"> 95</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos"> 96</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos"> 97</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to compute SHA256 hash, res=0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos"> 98</span><span class="w">        </span><span class="k">goto</span><span class="w"> </span><span class="n">exit</span><span class="p">;</span>
+<span class="linenos"> 99</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">100</span>
+<span class="linenos">101</span><span class="w">    </span><span class="cm">/* Open the persistent RSA key pair */</span>
+<span class="linenos">102</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_OpenPersistentObject</span><span class="p">(</span>
+<span class="linenos">103</span><span class="w">        </span><span class="n">TEE_STORAGE_PRIVATE</span><span class="p">,</span><span class="w">              </span><span class="cm">/* storageID */</span>
+<span class="linenos">104</span><span class="w">        </span><span class="n">RSA_KEYPAIR_STORAGE_NAME</span><span class="p">,</span><span class="w">         </span><span class="cm">/* objectID */</span>
+<span class="linenos">105</span><span class="w">        </span><span class="n">strlen</span><span class="p">(</span><span class="n">RSA_KEYPAIR_STORAGE_NAME</span><span class="p">),</span><span class="w"> </span><span class="cm">/* objectIDLen */</span>
+<span class="linenos">106</span><span class="w">        </span><span class="n">flags</span><span class="p">,</span><span class="w">                            </span><span class="cm">/* flags */</span>
+<span class="linenos">107</span><span class="w">        </span><span class="o">&amp;</span><span class="n">key_handle</span><span class="w">                       </span><span class="cm">/* object */</span>
+<span class="linenos">108</span><span class="w">    </span><span class="p">);</span>
+<span class="linenos">109</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos">110</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos">111</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to open RSA key pair for signing, res=0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos">112</span><span class="w">        </span><span class="k">goto</span><span class="w"> </span><span class="n">exit</span><span class="p">;</span>
+<span class="linenos">113</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">114</span>
+<span class="linenos">115</span><span class="w">    </span><span class="cm">/* Prepare operation handle for signing:</span>
+<span class="linenos">116</span><span class="cm">     *  - TEE_ALG_RSASSA_PKCS1_V1_5_SHA256 - RSA PKCS#1 v1.5 with SHA-256</span>
+<span class="linenos">117</span><span class="cm">     *  - TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256 - RSA PSS with MGF1 and SHA-256 (has random salt)</span>
+<span class="linenos">118</span><span class="cm">     */</span>
+<span class="linenos">119</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_AllocateOperation</span><span class="p">(</span>
+<span class="linenos">120</span><span class="w">        </span><span class="o">&amp;</span><span class="n">sign_op</span><span class="p">,</span><span class="w">                             </span><span class="cm">/* operation */</span>
+<span class="linenos">121</span><span class="w">        </span><span class="n">TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256</span><span class="p">,</span><span class="w"> </span><span class="cm">/* algorithm */</span>
+<span class="linenos">122</span><span class="w">        </span><span class="n">TEE_MODE_SIGN</span><span class="p">,</span><span class="w">                        </span><span class="cm">/* mode */</span>
+<span class="linenos">123</span><span class="w">        </span><span class="n">RSA_KEY_SIZE_BITS</span><span class="w">                     </span><span class="cm">/* maxKeySize */</span>
+<span class="linenos">124</span><span class="w">    </span><span class="p">);</span>
+<span class="linenos">125</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos">126</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos">127</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to allocate signing operation, res=0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos">128</span><span class="w">        </span><span class="k">goto</span><span class="w"> </span><span class="n">exit</span><span class="p">;</span>
+<span class="linenos">129</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">130</span>
+<span class="linenos">131</span><span class="w">    </span><span class="cm">/* Set the key for the operation */</span>
+<span class="linenos">132</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_SetOperationKey</span><span class="p">(</span><span class="n">sign_op</span><span class="p">,</span><span class="w"> </span><span class="n">key_handle</span><span class="p">);</span>
+<span class="linenos">133</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos">134</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos">135</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to set key for signing operation, res=0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos">136</span><span class="w">        </span><span class="k">goto</span><span class="w"> </span><span class="n">exit</span><span class="p">;</span>
+<span class="linenos">137</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">138</span>
+<span class="linenos">139</span><span class="w">    </span><span class="cm">/* Sign the SHA256 hash of the report */</span>
+<span class="linenos">140</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_AsymmetricSignDigest</span><span class="p">(</span>
+<span class="linenos">141</span><span class="w">        </span><span class="n">sign_op</span><span class="p">,</span><span class="w">           </span><span class="cm">/* operation */</span>
+<span class="linenos">142</span><span class="w">        </span><span class="nb">NULL</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">           </span><span class="cm">/* params, paramsCount */</span>
+<span class="linenos">143</span><span class="w">        </span><span class="n">aux_hash</span><span class="p">,</span><span class="w">          </span><span class="cm">/* digest */</span>
+<span class="linenos">144</span><span class="w">        </span><span class="n">aux_hash_len</span><span class="p">,</span><span class="w">      </span><span class="cm">/* digestLen */</span>
+<span class="linenos">145</span><span class="w">        </span><span class="n">aux_signature</span><span class="p">,</span><span class="w">     </span><span class="cm">/* signature */</span>
+<span class="linenos">146</span><span class="w">        </span><span class="o">&amp;</span><span class="n">aux_signature_len</span><span class="w"> </span><span class="cm">/* signatureLen */</span>
+<span class="linenos">147</span><span class="w">    </span><span class="p">);</span>
+<span class="linenos">148</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos">149</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos">150</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to sign attestation report, res=0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos">151</span><span class="w">        </span><span class="k">goto</span><span class="w"> </span><span class="n">exit</span><span class="p">;</span>
+<span class="linenos">152</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">153</span>
+<span class="linenos">154</span><span class="w">    </span><span class="cm">/* Convert report hash to a hexadecimal string representation */</span>
+<span class="linenos">155</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">convert_to_hex_str</span><span class="p">(</span><span class="n">aux_hash</span><span class="p">,</span><span class="w"> </span><span class="n">aux_hash_len</span><span class="p">,</span><span class="w"> </span><span class="n">hash_output</span><span class="p">,</span><span class="w"> </span><span class="n">hash_output_sz</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="linenos">156</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos">157</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos">158</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to convert report hash to hex string, res=0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos">159</span><span class="w">        </span><span class="k">goto</span><span class="w"> </span><span class="n">exit</span><span class="p">;</span>
+<span class="linenos">160</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">161</span>
+<span class="linenos">162</span><span class="w">    </span><span class="cm">/* Convert signature to a hexadecimal string representation */</span>
+<span class="linenos">163</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">convert_to_hex_str</span><span class="p">(</span><span class="n">aux_signature</span><span class="p">,</span><span class="w"> </span><span class="n">aux_signature_len</span><span class="p">,</span><span class="w"> </span><span class="n">signature_output</span><span class="p">,</span><span class="w"> </span><span class="n">signature_output_sz</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="linenos">164</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos">165</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos">166</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to convert signature to hex string, res=0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos">167</span><span class="w">        </span><span class="k">goto</span><span class="w"> </span><span class="n">exit</span><span class="p">;</span>
+<span class="linenos">168</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">169</span>
+<span class="linenos">170</span><span class="w">    </span><span class="cm">/* Fill the report structure */</span>
+<span class="linenos">171</span><span class="w">    </span><span class="n">memcpy</span><span class="p">(</span><span class="n">report_out</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">data_to_hash</span><span class="p">,</span><span class="w"> </span><span class="n">data_to_hash_sz</span><span class="p">);</span>
+<span class="linenos">172</span><span class="w">    </span><span class="n">memcpy</span><span class="p">(</span><span class="n">report_out</span><span class="o">-&gt;</span><span class="n">hash</span><span class="p">,</span><span class="w"> </span><span class="n">hash_output</span><span class="p">,</span><span class="w"> </span><span class="n">hash_output_sz</span><span class="p">);</span>
+<span class="linenos">173</span><span class="w">    </span><span class="n">memcpy</span><span class="p">(</span><span class="n">report_out</span><span class="o">-&gt;</span><span class="n">signature</span><span class="p">,</span><span class="w"> </span><span class="n">signature_output</span><span class="p">,</span><span class="w"> </span><span class="n">signature_output_sz</span><span class="p">);</span>
+<span class="linenos">174</span>
+<span class="linenos">175</span><span class="nl">exit</span><span class="p">:</span>
+<span class="linenos">176</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">data_to_hash</span><span class="p">)</span>
+<span class="linenos">177</span><span class="w">        </span><span class="n">TEE_Free</span><span class="p">(</span><span class="n">data_to_hash</span><span class="p">);</span>
+<span class="linenos">178</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">sign_op</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_HANDLE_NULL</span><span class="p">)</span>
+<span class="linenos">179</span><span class="w">        </span><span class="n">TEE_FreeOperation</span><span class="p">(</span><span class="n">sign_op</span><span class="p">);</span>
+<span class="linenos">180</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">key_handle</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_HANDLE_NULL</span><span class="p">)</span>
+<span class="linenos">181</span><span class="w">        </span><span class="n">TEE_CloseObject</span><span class="p">(</span><span class="n">key_handle</span><span class="p">);</span>
+<span class="linenos">182</span>
+<span class="linenos">183</span><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos">184</span><span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Function Parameters:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">report_out</span></code>: Pointer to a structure where the attestation report will be stored.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">nonce</span></code>: A random nonce provided by the verifier to ensure the report’s freshness.</p></li>
+</ul>
+<p><strong>Return:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">TEE_SUCCESS</span></code> if the operation completes successfully,</p></li>
+<li><p>Otherwise, an appropriate TEE error code indicating failure.</p></li>
+</ul>
+<p>—</p>
+</section>
+<section id="step-by-step-implementation-details">
+<h2>Step-by-step Implementation Details<a class="headerlink" href="#step-by-step-implementation-details" title="Link to this heading"></a></h2>
+<ol class="arabic">
+<li><p><strong>Input Validation</strong></p>
+<p>The function begins by checking if the pointers <code class="docutils literal notranslate"><span class="pre">nonce</span></code> and <code class="docutils literal notranslate"><span class="pre">report_out</span></code> are valid to avoid null dereferences.</p>
+</li>
+<li><p><strong>Retrieve Monotonic Counter</strong></p>
+<p>Calls <code class="docutils literal notranslate"><span class="pre">get_counter()</span></code> to fetch the current monotonic counter value, which helps prevent replay attacks by ensuring each attestation is unique and sequential.</p>
+</li>
+<li><p><strong>Retrieve the Last Counter Incremented Timestamp</strong></p>
+<p>The last counter incremented timestamp is obtained using the <code class="docutils literal notranslate"><span class="pre">get_counter_timestamp()</span></code> function. This timestamp indicates when the counter was last incremented, providing a temporal context for the attestation report.</p>
+</li>
+<li><p><strong>Prepare Data for Hashing</strong></p>
+<p>The data to be hashed is constructed by concatenating:</p>
+<ul class="simple">
+<li><p>The TA’s UUID (<code class="docutils literal notranslate"><span class="pre">UUID_SIZE</span></code> bytes),</p></li>
+<li><p>The current counter value (<code class="docutils literal notranslate"><span class="pre">uint64_t</span></code>),</p></li>
+<li><p>The current timestamp (<code class="docutils literal notranslate"><span class="pre">uint32_t</span></code>),</p></li>
+<li><p>The verifier’s nonce (<code class="docutils literal notranslate"><span class="pre">NONCE_SIZE</span></code> bytes).</p></li>
+</ul>
+<p>This concatenated data serves as the core attestation payload.</p>
+</li>
+<li><p><strong>Compute SHA-256 Hash</strong></p>
+<p>The concatenated data is hashed using the SHA-256 algorithm via the <code class="docutils literal notranslate"><span class="pre">compute_sha256()</span></code> function. This fixed-length hash summarizes the attestation data in a secure digest form.</p>
+</li>
+<li><p><strong>Load RSA Private Key</strong></p>
+<p>The function opens a persistent RSA key pair stored securely in the TEE persistent storage. This key will be used to sign the hash, providing cryptographic proof of the TA’s identity.</p>
+</li>
+<li><p><strong>Allocate RSA Signing Operation</strong></p>
+<p>Allocates a cryptographic operation handle configured for RSA signature generation using <strong>RSASSA-PSS</strong> padding with SHA-256, which provides probabilistic signature security.</p>
+</li>
+<li><p><strong>Set Signing Key</strong></p>
+<p>The RSA key handle is attached to the operation context.</p>
+</li>
+<li><p><strong>Sign the Hash</strong></p>
+<p>Using the RSA private key and the allocated operation handle, the SHA-256 hash is signed, producing a signature that guarantees the integrity and origin of the attestation report.</p>
+</li>
+<li><p><strong>Convert Binary Data to Hexadecimal</strong></p></li>
+</ol>
+<blockquote>
+<div><p>The nonce, hash, and signature are each converted into hexadecimal string representations for easy transmission and human-readable logging.</p>
+</div></blockquote>
+<ol class="arabic" start="11">
+<li><p><strong>Populate Attestation Report Structure</strong></p>
+<p>The final report is filled with:</p>
+<ul class="simple">
+<li><p>The raw data: <code class="docutils literal notranslate"><span class="pre">{uuid:&lt;UUID&gt;,counter:&lt;counter&gt;,timestamp:&lt;timestamp&gt;,nonce:&lt;nonce&gt;}</span></code></p></li>
+<li><p>The hexadecimal hash of the raw data,</p></li>
+<li><p>The hexadecimal signature of the hash.</p></li>
+</ul>
+</li>
+</ol>
+<p>—</p>
+</section>
+<section id="security-considerations">
+<h2>Security Considerations<a class="headerlink" href="#security-considerations" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>The attestation report generation takes place <strong>entirely within the TEE</strong>, preventing tampering from the normal world.</p></li>
+<li><p>Using a monotonic counter prevents replay attacks.</p></li>
+<li><p>The last incremented timestamp provides temporal context, ensuring the report is current.</p></li>
+<li><p>The verifier’s nonce ensures freshness of the attestation.</p></li>
+<li><p>RSA signatures using RSASSA-PSS with SHA-256 provide strong cryptographic guarantees.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="monotonic_counter.html" class="btn btn-neutral float-left" title="Monotonic Counter" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hugo Silva, Rúben Lopes, Joel Vaz.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

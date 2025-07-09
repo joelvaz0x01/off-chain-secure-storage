@@ -1,0 +1,256 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Retrieve Public Key &mdash; Off-Chain Data Storage  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="AES Implementation" href="../aes/index.html" />
+    <link rel="prev" title="Key Pair Generation" href="rsa_generate.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Off-Chain Data Storage
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../host/index.html">Client Application (host)</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Trusted Application (TA)</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../api.html">API Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../hash.html">Hash Implementation</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">RSA Implementation</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="rsa_generate.html">Key Pair Generation</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Retrieve Public Key</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#steps">Steps</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#code-reference">Code Reference</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#output-format">Output Format</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#possible-results">Possible Results</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../aes/index.html">AES Implementation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../monotonic_counter.html">Monotonic Counter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../attestation.html">Attestation Implementation</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Off-Chain Data Storage</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Trusted Application (TA)</a></li>
+          <li class="breadcrumb-item"><a href="index.html">RSA Implementation</a></li>
+      <li class="breadcrumb-item active">Retrieve Public Key</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/ta/rsa/rsa_get_pub.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="retrieve-public-key">
+<span id="rsa-get-public"></span><h1>Retrieve Public Key<a class="headerlink" href="#retrieve-public-key" title="Link to this heading"></a></h1>
+<p>This section documents how the Trusted Application (TA) securely retrieves the RSA public key from persistent storage.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Purpose</strong>: Provide the public part of the RSA key pair for external signature verification.</p></li>
+<li><p><strong>Format</strong>: Concatenated modulus and exponent</p></li>
+<li><p><strong>Access</strong>: Only public components are exposed; private key remains sealed</p></li>
+</ul>
+</section>
+<section id="steps">
+<h2>Steps<a class="headerlink" href="#steps" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p><strong>Validate Output Buffer</strong>:</p>
+<ul class="simple">
+<li><p>Ensures the caller’s buffer is large enough to hold <cite>modulus + exponent</cite>.</p></li>
+</ul>
+</li>
+<li><p><strong>Open Persistent RSA Key Object</strong>:</p>
+<ul class="simple">
+<li><p>Retrieves the private key object using <code class="docutils literal notranslate"><span class="pre">TEE_OpenPersistentObject()</span></code>, which also contains public key parts.</p></li>
+</ul>
+</li>
+<li><p><strong>Extract Public Key Attributes</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">TEE_GetObjectBufferAttribute()</span></code> is used to fetch:</p>
+<ul>
+<li><p><strong>Modulus</strong> (n)</p></li>
+<li><p><strong>Public exponent</strong> (e)</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>Copy to Output Buffer</strong>:</p>
+<ul class="simple">
+<li><p>The function copies both parts into a single continuous output buffer.</p></li>
+<li><p>Updates the length field to reflect actual data written.</p></li>
+</ul>
+</li>
+</ol>
+</section>
+<section id="code-reference">
+<h2>Code Reference<a class="headerlink" href="#code-reference" title="Link to this heading"></a></h2>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="n">TEE_Result</span><span class="w"> </span><span class="nf">get_rsa_public_key</span><span class="p">(</span><span class="kt">uint8_t</span><span class="w"> </span><span class="o">*</span><span class="n">public_key</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="o">*</span><span class="n">public_key_len</span><span class="p">)</span>
+<span class="linenos"> 2</span><span class="p">{</span>
+<span class="linenos"> 3</span><span class="w">    </span><span class="n">TEE_Result</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="n">TEE_ObjectHandle</span><span class="w"> </span><span class="n">pubkey_handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_HANDLE_NULL</span><span class="p">;</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">flags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_DATA_FLAG_ACCESS_READ</span><span class="p">;</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">modulus</span><span class="p">[</span><span class="n">RSA_MODULUS_SIZE</span><span class="p">];</span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">exponent</span><span class="p">[</span><span class="n">RSA_EXPONENT_SIZE</span><span class="p">];</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">mod_len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">modulus</span><span class="p">);</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">exp_len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">exponent</span><span class="p">);</span>
+<span class="linenos">10</span>
+<span class="linenos">11</span><span class="w">    </span><span class="cm">/* Check if the public key buffer is large enough */</span>
+<span class="linenos">12</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">public_key_len</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">RSA_PUBLIC_KEY_SIZE</span><span class="p">)</span>
+<span class="linenos">13</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos">14</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Public key buffer too small, expected size: %u bytes&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">RSA_PUBLIC_KEY_SIZE</span><span class="p">);</span>
+<span class="linenos">15</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">TEE_ERROR_SHORT_BUFFER</span><span class="p">;</span>
+<span class="linenos">16</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">17</span>
+<span class="linenos">18</span><span class="w">    </span><span class="cm">/* Open the persistent RSA key pair */</span>
+<span class="linenos">19</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_OpenPersistentObject</span><span class="p">(</span>
+<span class="linenos">20</span><span class="w">        </span><span class="n">TEE_STORAGE_PRIVATE</span><span class="p">,</span><span class="w">              </span><span class="cm">/* storageID */</span>
+<span class="linenos">21</span><span class="w">        </span><span class="n">RSA_KEYPAIR_STORAGE_NAME</span><span class="p">,</span><span class="w">         </span><span class="cm">/* objectID */</span>
+<span class="linenos">22</span><span class="w">        </span><span class="n">strlen</span><span class="p">(</span><span class="n">RSA_KEYPAIR_STORAGE_NAME</span><span class="p">),</span><span class="w"> </span><span class="cm">/* objectIDLen */</span>
+<span class="linenos">23</span><span class="w">        </span><span class="n">flags</span><span class="p">,</span><span class="w">                            </span><span class="cm">/* flags */</span>
+<span class="linenos">24</span><span class="w">        </span><span class="o">&amp;</span><span class="n">pubkey_handle</span><span class="w">                    </span><span class="cm">/* object */</span>
+<span class="linenos">25</span><span class="w">    </span><span class="p">);</span>
+<span class="linenos">26</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos">27</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos">28</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to open RSA key pair for public key retrieval, res=0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos">29</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos">30</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">31</span>
+<span class="linenos">32</span><span class="w">    </span><span class="cm">/* Read modulus */</span>
+<span class="linenos">33</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_GetObjectBufferAttribute</span><span class="p">(</span><span class="n">pubkey_handle</span><span class="p">,</span><span class="w"> </span><span class="n">TEE_ATTR_RSA_MODULUS</span><span class="p">,</span><span class="w"> </span><span class="n">modulus</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">mod_len</span><span class="p">);</span>
+<span class="linenos">34</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos">35</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos">36</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to get modulus: 0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos">37</span><span class="w">        </span><span class="n">TEE_CloseObject</span><span class="p">(</span><span class="n">pubkey_handle</span><span class="p">);</span>
+<span class="linenos">38</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos">39</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">40</span>
+<span class="linenos">41</span><span class="w">    </span><span class="cm">/* Read public exponent */</span>
+<span class="linenos">42</span><span class="w">    </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TEE_GetObjectBufferAttribute</span><span class="p">(</span><span class="n">pubkey_handle</span><span class="p">,</span><span class="w"> </span><span class="n">TEE_ATTR_RSA_PUBLIC_EXPONENT</span><span class="p">,</span><span class="w"> </span><span class="n">exponent</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">exp_len</span><span class="p">);</span>
+<span class="linenos">43</span><span class="w">    </span><span class="n">TEE_CloseObject</span><span class="p">(</span><span class="n">pubkey_handle</span><span class="p">);</span>
+<span class="linenos">44</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">res</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">)</span>
+<span class="linenos">45</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos">46</span><span class="w">        </span><span class="n">EMSG</span><span class="p">(</span><span class="s">&quot;Failed to get exponent: 0x%08x&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">);</span>
+<span class="linenos">47</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span>
+<span class="linenos">48</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">49</span>
+<span class="linenos">50</span><span class="w">    </span><span class="cm">/* Copy modulus and exponent into output buffer */</span>
+<span class="linenos">51</span><span class="w">    </span><span class="n">TEE_MemMove</span><span class="p">(</span><span class="n">public_key</span><span class="p">,</span><span class="w"> </span><span class="n">modulus</span><span class="p">,</span><span class="w"> </span><span class="n">mod_len</span><span class="p">);</span>
+<span class="linenos">52</span><span class="w">    </span><span class="n">TEE_MemMove</span><span class="p">(</span><span class="n">public_key</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">mod_len</span><span class="p">,</span><span class="w"> </span><span class="n">exponent</span><span class="p">,</span><span class="w"> </span><span class="n">exp_len</span><span class="p">);</span>
+<span class="linenos">53</span><span class="w">    </span><span class="o">*</span><span class="n">public_key_len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mod_len</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">exp_len</span><span class="p">;</span>
+<span class="linenos">54</span>
+<span class="linenos">55</span><span class="w">    </span><span class="n">DMSG</span><span class="p">(</span><span class="s">&quot;RSA public key successfully retrieved&quot;</span><span class="p">);</span>
+<span class="linenos">56</span><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">TEE_SUCCESS</span><span class="p">;</span>
+<span class="linenos">57</span><span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="output-format">
+<h2>Output Format<a class="headerlink" href="#output-format" title="Link to this heading"></a></h2>
+<p>The final <code class="docutils literal notranslate"><span class="pre">public_key</span></code> buffer contains:</p>
+<ul class="simple">
+<li><p><strong>[0:n]</strong> — RSA Modulus</p></li>
+<li><p><strong>[n:n+e]</strong> — RSA Public Exponent</p></li>
+</ul>
+<p>Total size is set via:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="o">*</span><span class="n">public_key_len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mod_len</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">exp_len</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+<section id="possible-results">
+<h2>Possible Results<a class="headerlink" href="#possible-results" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">TEE_ERROR_SHORT_BUFFER</span></code>: Output buffer too small</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">TEE_ERROR_ITEM_NOT_FOUND</span></code>: RSA key object missing</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">TEE_ERROR_BAD_PARAMETERS</span></code>: Invalid buffer or flags</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">TEE_SUCCESS</span></code>: Public key successfully retrieved</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="rsa_generate.html" class="btn btn-neutral float-left" title="Key Pair Generation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../aes/index.html" class="btn btn-neutral float-right" title="AES Implementation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hugo Silva, Rúben Lopes, Joel Vaz.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
