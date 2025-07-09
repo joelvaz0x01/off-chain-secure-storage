@@ -2,14 +2,7 @@
 Trusted Application for secure off-chain data storage
 
 
-## :page_facing_up: Project Overview
-- **Course**: AES 2024/2025
-- **Assignment**: #2 - Off-Chain Data Storage using OP-TEE
-- **Authors**:
-    - Hugo Silva - n.º 86157
-    - Rúben Lopes - n.º 103009
-    - Joel Vaz - n.º 124461
-
+## 📄 Project Overview
 > [!NOTE]
 > This is based on OP-TEE Sample Application [secure storage example](https://github.com/linaro-swg/optee_examples/tree/master/secure_storage).
 
@@ -18,11 +11,11 @@ Trusted Application for secure off-chain data storage
 | off_chain_secure_storage | e3ae8c32-5fc1-42e4-b476-b35fe3f8f07d |
 
 
-## :clipboard: Project Description
+## 📋 Project Description
 This project implements a secure off-chain data storage solution using OP-TEE (Open Portable Trusted Execution Environment) for IoT sensor data management. The system main purpose is storing sensitive data off-chain while maintaining blockchain-level integrity and auditability through cryptographic hashing.
 
 
-## :open_file_folder: Project Structure
+## 📂 Project Structure
 
 ```bash
 off_chain_secure_storage/
@@ -53,7 +46,7 @@ off_chain_secure_storage/
 ```
 
 
-## :computer: System Architecture
+## 💻 System Architecture
 
 ### Security Architecture
 
@@ -185,7 +178,7 @@ The application provides the following commands:
 **Response:** Returns RSA-2048 public key components
 
 
-## :wrench: Installation and Setup
+## 🔧 Installation and Setup
 
 ### Prerequisites
 
@@ -204,7 +197,7 @@ make --jobs=$(nproc)
 
 # Clone this project
 cd $OPTEE_DIR/optee_examples
-git clone https://github.com/detiuaveiro/assignement-2-proj2-86157_103009_124461.git off_chain_secure_storage
+git clone https://github.com/joelvaz0x01/off-chain-secure-storage.git off_chain_secure_storage
 
 # Rebuild OP-TEE with the new project
 cd $OPTEE_DIR/build
@@ -238,7 +231,7 @@ Commands:
 ```
 
 
-## :book: Documentation
+## 📖 Documentation
 
 To build the documentation, you will need to install Python and make the following commands:
 ```bash
@@ -252,10 +245,16 @@ pip install -r docs/requirements.txt
 sphinx-build -b html docs/ docs/_build/html
 ```
 
-The documentation will be generated in the `_build/html` directory. You can open the `index.html` file in a web browser to view it.
+The documentation will be generated in the `_build/html` directory. You can open the `index.html` file in a web browser to view it or consult the [online documentation](https://joelvaz0x01.github.io/off-chain-secure-storage/).
 
 
-## :link: References
+## 🤝 Contributors
+- [Hugo Silva](https://github.com/Hugofos)
+- [Joel Vaz](https://github.com/joelvaz0x01)
+- [Rúben Lopes](https://github.com/rlopes0773)
+
+
+## 🔗 References
 
 1. [OP-TEE Documentation](https://optee.readthedocs.io/) - Official OP-TEE development guide
 2. [TEE Internal Core API Specifications](https://globalplatform.org/specs-library/tee-internal-core-api-specification/) - Trusted application specifications
